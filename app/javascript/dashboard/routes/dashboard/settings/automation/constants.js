@@ -132,6 +132,10 @@ export const AUTOMATIONS = {
         key: 'send_attachment',
         name: 'SEND_ATTACHMENT',
       },
+      {
+        key: 'run_waflow_agent',
+        name: 'RUN_WAFLOW_AGENT',
+      },
     ],
   },
   conversation_created: {
@@ -708,6 +712,11 @@ export const AUTOMATION_ACTION_TYPES = [
     key: 'add_private_note',
     label: 'ADD_PRIVATE_NOTE',
     inputType: 'textarea',
+  },
+  {
+    key: 'run_waflow_agent',
+    label: 'RUN_WAFLOW_AGENT',
+    inputType: 'search_select',
   },
   {
     key: 'change_priority',

@@ -14,11 +14,19 @@ class Whatsapp::OneoffCampaignService
   delegate :channel, to: :inbox
 
   def validate_campaign_type!
-    raise "Invalid campaign #{campaign.id}" unless whatsapp_campaign? && campaign.one_off?
+    raise "Invalid campaign #{campaign.id}" unless supported_whatsapp_campaign? && campaign.one_off?
   end
 
-  def whatsapp_campaign?
+  def supported_whatsapp_campaign?
+    native_whatsapp_campaign? || waflow_official_api_campaign?
+  end
+
+  def native_whatsapp_campaign?
     campaign.inbox.inbox_type == 'Whatsapp'
+  end
+
+  def waflow_official_api_campaign?
+    inbox.api? && ActiveModel::Type::Boolean.new.cast(channel.additional_attributes&.[]('waflow_official_template_capable'))
   end
 
   def validate_campaign_status!
@@ -26,6 +34,7 @@ class Whatsapp::OneoffCampaignService
   end
 
   def validate_provider!
+    return if waflow_official_api_campaign?
     raise 'WhatsApp Cloud provider required' if channel.provider != 'whatsapp_cloud'
   end
 
@@ -58,7 +67,7 @@ class Whatsapp::OneoffCampaignService
       return
     end
 
-    send_whatsapp_template_message(to: contact.phone_number)
+    send_template_message(to: contact.phone_number)
   end
 
   def process_audience(audience_labels)
@@ -70,7 +79,11 @@ class Whatsapp::OneoffCampaignService
     Rails.logger.info "Campaign #{campaign.id} processing completed"
   end
 
-  def send_whatsapp_template_message(to:)
+  def send_template_message(to:)
+    if waflow_official_api_campaign?
+      return send_waflow_template_message(to: to)
+    end
+
     processor = Whatsapp::TemplateProcessorService.new(
       channel: channel,
       template_params: campaign.template_params
@@ -87,10 +100,27 @@ class Whatsapp::OneoffCampaignService
                             parameters: processed_parameters
                           }, nil)
 
-  rescue StandardError => e
+    rescue StandardError => e
     Rails.logger.error "Failed to send WhatsApp template message to #{to}: #{e.message}"
     Rails.logger.error "Backtrace: #{e.backtrace.first(5).join('\n')}"
     # continue processing remaining contacts
+    nil
+  end
+
+  def send_waflow_template_message(to:)
+    result = WaflowWhatsappTemplates::SendTemplateService.new(
+      inbox: inbox,
+      to: to,
+      template_params: campaign.template_params
+    ).perform
+
+    return if result[:success]
+
+    Rails.logger.error "Failed to send Waflow official WhatsApp campaign template to #{to}: #{result[:error]}"
+    nil
+  rescue StandardError => e
+    Rails.logger.error "Failed to send Waflow official WhatsApp campaign template to #{to}: #{e.message}"
+    Rails.logger.error "Backtrace: #{e.backtrace.first(5).join('\n')}"
     nil
   end
 end

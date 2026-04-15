@@ -27,6 +27,7 @@ export default function useAutomationValues() {
   const labels = useMapGetter('labels/getLabels');
   const teams = useMapGetter('teams/getTeams');
   const slaPolicies = useMapGetter('sla/getSLA');
+  const waflowAgents = useMapGetter('waflowAgents/getRecords');
 
   const booleanFilterOptions = computed(() => [
     { id: true, name: t('FILTER.ATTRIBUTE_LABELS.TRUE') },
@@ -125,6 +126,7 @@ export default function useAutomationValues() {
       agents: agents.value,
       labels: labels.value,
       teams: teams.value,
+      waflowAgents: waflowAgents.value,
       slaPolicies: slaPolicies.value,
       languages,
       type,
@@ -148,5 +150,6 @@ export default function useAutomationValues() {
     labels,
     teams,
     slaPolicies,
+    waflowAgents,
   };
 }

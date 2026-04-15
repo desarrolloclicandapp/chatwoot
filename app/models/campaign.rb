@@ -71,6 +71,8 @@ class Campaign < ApplicationRecord
       Sms::OneoffSmsCampaignService.new(campaign: self).perform
     when 'Whatsapp'
       Whatsapp::OneoffCampaignService.new(campaign: self).perform if account.feature_enabled?(:whatsapp_campaign)
+    when 'API'
+      Whatsapp::OneoffCampaignService.new(campaign: self).perform if account.feature_enabled?(:whatsapp_campaign)
     end
   end
 
@@ -81,14 +83,15 @@ class Campaign < ApplicationRecord
   def validate_campaign_inbox
     return unless inbox
 
-    errors.add :inbox, 'Unsupported Inbox type' unless ['Website', 'Twilio SMS', 'Sms', 'Whatsapp'].include? inbox.inbox_type
+    supported_inbox = ['Website', 'Twilio SMS', 'Sms', 'Whatsapp'].include?(inbox.inbox_type) || api_whatsapp_campaign_capable?
+    errors.add :inbox, 'Unsupported Inbox type' unless supported_inbox
   end
 
   # TO-DO we clean up with better validations when campaigns evolve into more inboxes
   def ensure_correct_campaign_attributes
     return if inbox.blank?
 
-    if ['Twilio SMS', 'Sms', 'Whatsapp'].include?(inbox.inbox_type)
+    if ['Twilio SMS', 'Sms', 'Whatsapp'].include?(inbox.inbox_type) || api_whatsapp_campaign_capable?
       self.campaign_type = 'one_off'
       self.scheduled_at ||= Time.now.utc
     else
@@ -122,6 +125,12 @@ class Campaign < ApplicationRecord
 
   def prevent_completed_campaign_from_update
     errors.add :status, 'The campaign is already completed' if !campaign_status_changed? && completed?
+  end
+
+  def api_whatsapp_campaign_capable?
+    return false unless inbox&.api?
+
+    ActiveModel::Type::Boolean.new.cast(inbox.channel.additional_attributes&.[]('waflow_official_template_capable'))
   end
 
   # creating db triggers

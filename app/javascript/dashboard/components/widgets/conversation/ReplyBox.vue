@@ -142,6 +142,7 @@ export default {
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
+      apiTemplateSyncAttemptedInboxes: {},
     };
   },
   computed: {
@@ -169,11 +170,14 @@ export default {
       );
     },
     showWhatsappTemplates() {
-      // We support templates for API channels if someone updates templates manually via API
-      // That's why we don't explicitly check for channel type here
       const templates = this.$store.getters['inboxes/getWhatsAppTemplates'](
         this.inboxId
       );
+      if (this.isAPIInbox) {
+        const capability =
+          this.inbox?.additional_attributes?.waflow_official_template_capable;
+        return (capability !== false || !!(templates && templates.length)) && !this.isPrivate;
+      }
       return !!(templates && templates.length) && !this.isPrivate;
     },
     showContentTemplates() {
@@ -463,6 +467,7 @@ export default {
       }
 
       this.fetchAndSetReplyTo();
+      this.maybeAutoSyncApiInboxTemplates();
     },
     // When moving from one conversation to another, the store may not have the
     // list of all the messages. A fetch is subsequently made to get the messages.
@@ -493,7 +498,7 @@ export default {
     },
   },
 
-  mounted() {
+    mounted() {
     this.getFromDraft();
     // Don't use the keyboard listener mixin here as the events here are supposed to be
     // working even if the editor is focussed.
@@ -509,6 +514,7 @@ export default {
     );
 
     this.fetchAndSetReplyTo();
+    this.maybeAutoSyncApiInboxTemplates();
     emitter.on(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.onReplyToMessage);
 
     // A hacky fix to solve the drag and drop
@@ -736,6 +742,33 @@ export default {
     },
     toggleVariablesMenu(value) {
       this.showVariablesMenu = value;
+    },
+    async maybeAutoSyncApiInboxTemplates() {
+      if (!this.isAPIInbox || this.isPrivate || !this.inboxId) {
+        return;
+      }
+
+      const templates = this.$store.getters['inboxes/getWhatsAppTemplates'](
+        this.inboxId
+      );
+      if (templates && templates.length) {
+        return;
+      }
+
+      if (this.apiTemplateSyncAttemptedInboxes[this.inboxId]) {
+        return;
+      }
+
+      this.apiTemplateSyncAttemptedInboxes = {
+        ...this.apiTemplateSyncAttemptedInboxes,
+        [this.inboxId]: true,
+      };
+
+      try {
+        await this.$store.dispatch('inboxes/syncTemplates', this.inboxId);
+      } catch (_) {
+        // API inboxes that are not Meta official should fail silently here.
+      }
     },
     openWhatsappTemplateModal() {
       this.showWhatsAppTemplatesModal = true;

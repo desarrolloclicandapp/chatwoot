@@ -58,6 +58,7 @@ const onSave = (payload, mode) => {
 onMounted(() => {
   store.dispatch('inboxes/get');
   store.dispatch('agents/get');
+  store.dispatch('waflowAgents/get');
   store.dispatch('contacts/get');
   store.dispatch('teams/get');
   store.dispatch('labels/get');

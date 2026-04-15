@@ -47,6 +47,7 @@ import summaryReports from './modules/summaryReports';
 import teamMembers from './modules/teamMembers';
 import teams from './modules/teams';
 import userNotificationSettings from './modules/userNotificationSettings';
+import waflowAgents from './modules/waflowAgents';
 import webhooks from './modules/webhooks';
 import captainAssistants from './captain/assistant';
 import captainDocuments from './captain/document';
@@ -110,6 +111,7 @@ export default createStore({
     teamMembers,
     teams,
     userNotificationSettings,
+    waflowAgents,
     webhooks,
     captainAssistants,
     captainDocuments,

@@ -8,6 +8,16 @@ module Api::V1::Accounts::Concerns::WhatsappHealthManagement
   end
 
   def sync_templates
+    if api_channel?
+      result = WaflowWhatsappTemplates::FetchTemplatesService.new(inbox: @inbox).perform
+      return render status: result[:status] || :unprocessable_entity, json: { error: result[:error] } unless result[:success]
+
+      return render status: :ok, json: {
+        message: 'Template sync initiated successfully',
+        templates_count: result[:templates_count].to_i
+      }
+    end
+
     return render status: :unprocessable_entity, json: { error: 'Template sync is only available for WhatsApp channels' } unless whatsapp_channel?
 
     trigger_template_sync
@@ -43,6 +53,10 @@ module Api::V1::Accounts::Concerns::WhatsappHealthManagement
 
   def whatsapp_channel?
     @inbox.whatsapp? || (@inbox.twilio? && @inbox.channel.whatsapp?)
+  end
+
+  def api_channel?
+    @inbox.api?
   end
 
   def trigger_template_sync

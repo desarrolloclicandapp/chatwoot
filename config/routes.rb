@@ -93,6 +93,7 @@ Rails.application.routes.draw do
             end
           end
           resources :assignable_agents, only: [:index]
+          resources :waflow_agents, only: [:index]
           resource :audit_logs, only: [:show]
           resources :callbacks, only: [] do
             collection do

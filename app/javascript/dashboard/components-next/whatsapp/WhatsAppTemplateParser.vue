@@ -148,6 +148,8 @@ const sendMessage = () => {
       category,
       language,
       namespace,
+      parameter_format:
+        props.template.parameter_format || props.template.parameterFormat || '',
       processed_params: processedParams.value,
     },
   };

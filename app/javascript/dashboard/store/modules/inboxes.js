@@ -151,7 +151,11 @@ export const getters = {
   },
   getWhatsAppInboxes($state) {
     return $state.records.filter(
-      item => item.channel_type === INBOX_TYPES.WHATSAPP
+      item =>
+        item.channel_type === INBOX_TYPES.WHATSAPP ||
+        (item.channel_type === INBOX_TYPES.API &&
+          item.additional_attributes?.waflow_official_template_capable !==
+            false)
     );
   },
   dialogFlowEnabledInboxes($state) {
@@ -345,11 +349,25 @@ export const actions = {
       throw new Error(error);
     }
   },
-  syncTemplates: async (_, inboxId) => {
+  syncTemplates: async ({ commit }, inboxId) => {
+    let syncError = null;
     try {
       await InboxesAPI.syncTemplates(inboxId);
     } catch (error) {
-      throw new Error(error);
+      syncError = error;
+    }
+
+    try {
+      const response = await InboxesAPI.show(inboxId);
+      commit(types.default.EDIT_INBOXES, response.data);
+    } catch (refreshError) {
+      if (!syncError) {
+        throw new Error(refreshError);
+      }
+    }
+
+    if (syncError) {
+      throw new Error(syncError);
     }
   },
   createCSATTemplate: async (_, { inboxId, template }) => {

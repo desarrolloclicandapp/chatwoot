@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useStore } from 'vuex';
+import { INBOX_TYPES } from 'dashboard/helper/inbox';
 
 import Input from 'dashboard/components-next/input/Input.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -14,11 +16,13 @@ import WhatsAppTemplateParser from 'dashboard/components-next/whatsapp/WhatsAppT
 const emit = defineEmits(['submit', 'cancel']);
 
 const { t } = useI18n();
+const store = useStore();
 
 const formState = {
   uiFlags: useMapGetter('campaigns/getUIFlags'),
   labels: useMapGetter('labels/getLabels'),
   inboxes: useMapGetter('inboxes/getWhatsAppInboxes'),
+  allInboxes: useMapGetter('inboxes/getAllInboxes'),
   getFilteredWhatsAppTemplates: useMapGetter(
     'inboxes/getFilteredWhatsAppTemplates'
   ),
@@ -34,6 +38,7 @@ const initialState = {
 
 const state = reactive({ ...initialState });
 const templateParserRef = ref(null);
+const apiSyncAttemptedInboxIds = ref({});
 
 const rules = {
   title: { required, minLength: minLength(1) },
@@ -46,6 +51,9 @@ const rules = {
 const v$ = useVuelidate(rules, state);
 
 const isCreating = computed(() => formState.uiFlags.value.isCreating);
+const allApiInboxes = computed(() =>
+  formState.allInboxes.value.filter(inbox => inbox.channel_type === INBOX_TYPES.API)
+);
 
 const currentDateTime = computed(() => {
   // Added to disable the scheduled at field from being set to the current time
@@ -122,6 +130,33 @@ const resetState = () => {
 
 const handleCancel = () => emit('cancel');
 
+const syncApiInboxTemplates = async inboxId => {
+  const safeInboxId = Number(inboxId);
+  if (!safeInboxId) return;
+
+  const selectedInbox = formState.allInboxes.value.find(
+    inbox => Number(inbox.id) === safeInboxId
+  );
+  if (!selectedInbox || selectedInbox.channel_type !== INBOX_TYPES.API) {
+    return;
+  }
+
+  if (apiSyncAttemptedInboxIds.value[safeInboxId]) {
+    return;
+  }
+
+  apiSyncAttemptedInboxIds.value = {
+    ...apiSyncAttemptedInboxIds.value,
+    [safeInboxId]: true,
+  };
+
+  try {
+    await store.dispatch('inboxes/syncTemplates', safeInboxId);
+  } catch (error) {
+    // Unsupported API inboxes should fail quietly here and disappear after refresh.
+  }
+};
+
 const prepareCampaignDetails = () => {
   // Find the selected template to get its content
   const currentTemplate = selectedTemplate.value;
@@ -136,6 +171,8 @@ const prepareCampaignDetails = () => {
     namespace: currentTemplate?.namespace || '',
     category: currentTemplate?.category || 'UTILITY',
     language: currentTemplate?.language || 'en_US',
+    parameter_format:
+      currentTemplate?.parameter_format || currentTemplate?.parameterFormat || '',
     processed_params: parserData?.processedParams || {},
   };
 
@@ -164,9 +201,27 @@ const handleSubmit = async () => {
 // Reset template selection when inbox changes
 watch(
   () => state.inboxId,
-  () => {
+  async inboxId => {
     state.templateId = null;
+    await syncApiInboxTemplates(inboxId);
   }
+);
+
+watch(
+  allApiInboxes,
+  inboxes => {
+    inboxes.forEach(inbox => {
+      const hasTemplates =
+        Array.isArray(inbox.additional_attributes?.message_templates) &&
+        inbox.additional_attributes.message_templates.length > 0;
+      if (hasTemplates) return;
+      if (inbox.additional_attributes?.waflow_official_template_capable === false) {
+        return;
+      }
+      syncApiInboxTemplates(inbox.id);
+    });
+  },
+  { immediate: true }
 );
 </script>
 

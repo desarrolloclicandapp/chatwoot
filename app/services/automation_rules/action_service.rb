@@ -64,4 +64,23 @@ class AutomationRules::ActionService < ActionService
       @account.increment_email_sent_count
     end
   end
+
+  def run_waflow_agent(agent_ids = [])
+    safe_agent_id = agent_ids[0].to_i
+    return if safe_agent_id <= 0
+
+    result = WaflowAgents::ExecuteService.new(
+      account: @account,
+      conversation: @conversation,
+      rule: @rule
+    ).perform(agent_id: safe_agent_id)
+
+    return unless result.is_a?(Hash) && result[:success] == false && result[:error_message].present?
+
+    Rails.logger.warn(
+      "[AutomationRules::ActionService] run_waflow_agent failed " \
+      "account=#{@account.id} conversation=#{@conversation.id} rule=#{@rule.id} " \
+      "agent=#{safe_agent_id}: #{result[:error_message]}"
+    )
+  end
 end

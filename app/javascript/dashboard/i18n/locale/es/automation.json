@@ -151,6 +151,7 @@
       "SEND_ATTACHMENT": "Enviar archivo adjunto",
       "SEND_MESSAGE": "Enviar mensaje",
       "ADD_PRIVATE_NOTE": "Añadir una nota privada",
+      "RUN_WAFLOW_AGENT": "Ejecutar agente de Waflow",
       "CHANGE_PRIORITY": "Cambiar prioridad",
       "ADD_SLA": "Añadir SLA",
       "OPEN_CONVERSATION": "Abrir conversación",
