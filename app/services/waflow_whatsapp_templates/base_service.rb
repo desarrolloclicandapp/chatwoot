@@ -11,12 +11,16 @@ class WaflowWhatsappTemplates::BaseService
   def waflow_secret
     @waflow_secret ||= begin
       primary = GlobalConfigService.load('WAFLOW_CHATWOOT_AGENT_SECRET', '').to_s.strip
-      next primary if primary.present?
-
-      secondary = GlobalConfigService.load('CHATWOOT_WAFLOW_AGENT_SECRET', '').to_s.strip
-      next secondary if secondary.present?
-
-      GlobalConfigService.load('CHATWOOT_WAFLOW_BRIDGE_SECRET', '').to_s.strip
+      if primary.present?
+        primary
+      else
+        secondary = GlobalConfigService.load('CHATWOOT_WAFLOW_AGENT_SECRET', '').to_s.strip
+        if secondary.present?
+          secondary
+        else
+          GlobalConfigService.load('CHATWOOT_WAFLOW_BRIDGE_SECRET', '').to_s.strip
+        end
+      end
     end
   end
 
