@@ -136,6 +136,9 @@ Rails.application.routes.draw do
                   post :retry
                 end
               end
+              resource :waflow_agent, only: [:create] do
+                post :reset_memory, on: :collection
+              end
               resources :assignments, only: [:create]
               resources :labels, only: [:create, :index]
               resource :participants, only: [:show, :create, :update, :destroy]

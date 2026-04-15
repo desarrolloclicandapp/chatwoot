@@ -126,6 +126,26 @@ export default {
       type: Boolean,
       default: false,
     },
+    enableWaflowAgent: {
+      type: Boolean,
+      default: false,
+    },
+    waflowAgentLabel: {
+      type: String,
+      default: 'Waflow AI',
+    },
+    isWaflowAgentLoading: {
+      type: Boolean,
+      default: false,
+    },
+    isWaflowAgentDisabled: {
+      type: Boolean,
+      default: false,
+    },
+    showWaflowReset: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: [
     'replaceText',
@@ -133,6 +153,8 @@ export default {
     'selectWhatsappTemplate',
     'selectContentTemplate',
     'toggleQuotedReply',
+    'runWaflowAgent',
+    'resetWaflowAgentMemory',
   ],
   setup(props) {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -409,6 +431,29 @@ export default {
       />
     </div>
     <div class="right-wrap">
+      <NextButton
+        v-if="enableWaflowAgent"
+        :label="waflowAgentLabel"
+        icon="i-lucide-sparkles"
+        color="slate"
+        variant="ghost"
+        size="sm"
+        :disabled="isWaflowAgentDisabled || isWaflowAgentLoading"
+        :is-loading="isWaflowAgentLoading"
+        class="ltr:mr-2 rtl:ml-2"
+        @click="$emit('runWaflowAgent')"
+      />
+      <NextButton
+        v-if="enableWaflowAgent && showWaflowReset"
+        v-tooltip.top-end="'Reset Waflow memory'"
+        icon="i-lucide-rotate-ccw"
+        color="slate"
+        variant="ghost"
+        size="sm"
+        :disabled="isWaflowAgentLoading"
+        class="ltr:mr-2 rtl:ml-2"
+        @click="$emit('resetWaflowAgentMemory')"
+      />
       <NextButton
         :label="sendButtonText"
         type="submit"

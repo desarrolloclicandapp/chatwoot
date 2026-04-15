@@ -137,6 +137,20 @@ class ConversationApi extends ApiClient {
     return axios.get(`${this.url}/${conversationId}/inbox_assistant`);
   }
 
+  runWaflowAgent({ conversationId, agentId, mode, extraContext = '' }) {
+    return axios.post(`${this.url}/${conversationId}/waflow_agent`, {
+      agent_id: agentId,
+      mode,
+      extra_context: extraContext,
+    });
+  }
+
+  resetWaflowAgentMemory({ conversationId, agentId }) {
+    return axios.post(`${this.url}/${conversationId}/waflow_agent/reset_memory`, {
+      agent_id: agentId,
+    });
+  }
+
   delete(conversationId) {
     return axios.delete(`${this.url}/${conversationId}`);
   }

@@ -46,6 +46,7 @@ import {
   CAPTAIN_EVENTS,
 } from '../../../helper/AnalyticsHelper/events';
 import fileUploadMixin from 'dashboard/mixins/fileUploadMixin';
+import ConversationApi from 'dashboard/api/inbox/conversation';
 import {
   appendSignature,
   removeSignature,
@@ -143,6 +144,7 @@ export default {
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
       apiTemplateSyncAttemptedInboxes: {},
+      waflowAgentLoading: false,
     };
   },
   computed: {
@@ -204,6 +206,33 @@ export default {
     },
     inbox() {
       return this.$store.getters['inboxes/getInbox'](this.inboxId);
+    },
+    waflowAgentConfig() {
+      return this.inbox?.additional_attributes || {};
+    },
+    waflowDefaultAgentId() {
+      return Number(this.waflowAgentConfig.waflow_default_agent_id || 0);
+    },
+    waflowAgentMode() {
+      return this.waflowAgentConfig.waflow_agent_mode || 'suggest';
+    },
+    canUseWaflowAgent() {
+      return (
+        this.isAPIInbox &&
+        !this.isPrivate &&
+        this.waflowDefaultAgentId > 0
+      );
+    },
+    waflowAgentButtonLabel() {
+      return this.waflowAgentMode === 'reply'
+        ? 'Reply with Waflow AI'
+        : 'Suggest with Waflow AI';
+    },
+    isWaflowAgentActionDisabled() {
+      if (!this.canUseWaflowAgent) return true;
+      if (this.waflowAgentMode === 'reply') return this.isEditorDisabled;
+
+      return false;
     },
     messagePlaceHolder() {
       if (this.isEditorDisabled) {
@@ -938,6 +967,71 @@ export default {
       });
       this.hideContentTemplatesModal();
     },
+    applyWaflowSuggestion(replyText) {
+      const safeReply = replyText.toString().trim();
+      if (!safeReply) return;
+
+      this.message = this.message?.trim()
+        ? `${this.message}\n\n${safeReply}`
+        : safeReply;
+      this.onFocus();
+    },
+    async runWaflowAgent() {
+      if (!this.canUseWaflowAgent || this.waflowAgentLoading) return;
+
+      this.waflowAgentLoading = true;
+      try {
+        const response = await ConversationApi.runWaflowAgent({
+          conversationId: this.currentChat.id,
+          agentId: this.waflowDefaultAgentId,
+          mode: this.waflowAgentMode,
+          extraContext: this.message?.trim() || '',
+        });
+        const payload = response?.data?.payload || {};
+        const replyText = payload.reply_text?.toString().trim() || '';
+
+        if (this.waflowAgentMode === 'suggest') {
+          if (!replyText) {
+            useAlert('Waflow AI did not return a suggestion.');
+            return;
+          }
+          this.applyWaflowSuggestion(replyText);
+          useAlert('Waflow AI suggestion inserted into the composer.');
+          return;
+        }
+
+        useAlert('Waflow AI replied in this conversation.');
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || 'Waflow AI could not complete the action.';
+        useAlert(errorMessage);
+      } finally {
+        this.waflowAgentLoading = false;
+      }
+    },
+    async resetWaflowAgentMemory() {
+      if (!this.canUseWaflowAgent || this.waflowAgentLoading) return;
+
+      this.waflowAgentLoading = true;
+      try {
+        const response = await ConversationApi.resetWaflowAgentMemory({
+          conversationId: this.currentChat.id,
+          agentId: this.waflowDefaultAgentId,
+        });
+        const deletedCount = response?.data?.payload?.deleted_count ?? 0;
+        useAlert(
+          deletedCount > 0
+            ? `Waflow AI memory reset. ${deletedCount} messages cleared.`
+            : 'Waflow AI memory reset.'
+        );
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || 'Waflow AI memory could not be reset.';
+        useAlert(errorMessage);
+      } finally {
+        this.waflowAgentLoading = false;
+      }
+    },
     replaceText(message) {
       if (this.sendWithSignature && !this.private) {
         // if signature is enabled, append it to the message
@@ -1460,8 +1554,15 @@ export default {
         :message="message"
         :portal-slug="connectedPortalSlug"
         :new-conversation-modal-active="newConversationModalActive"
+        :enable-waflow-agent="canUseWaflowAgent"
+        :waflow-agent-label="waflowAgentButtonLabel"
+        :is-waflow-agent-loading="waflowAgentLoading"
+        :is-waflow-agent-disabled="isWaflowAgentActionDisabled"
+        :show-waflow-reset="canUseWaflowAgent"
         @select-whatsapp-template="openWhatsappTemplateModal"
         @select-content-template="openContentTemplateModal"
+        @run-waflow-agent="runWaflowAgent"
+        @reset-waflow-agent-memory="resetWaflowAgentMemory"
         @replace-text="replaceText"
         @toggle-insert-article="toggleInsertArticle"
         @toggle-quoted-reply="toggleQuotedReply"

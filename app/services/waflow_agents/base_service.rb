@@ -9,7 +9,19 @@ class WaflowAgents::BaseService
   end
 
   def waflow_secret
-    @waflow_secret ||= GlobalConfigService.load('WAFLOW_CHATWOOT_AGENT_SECRET', '').to_s.strip
+    @waflow_secret ||= begin
+      primary = GlobalConfigService.load('WAFLOW_CHATWOOT_AGENT_SECRET', '').to_s.strip
+      if primary.present?
+        primary
+      else
+        secondary = GlobalConfigService.load('CHATWOOT_WAFLOW_AGENT_SECRET', '').to_s.strip
+        if secondary.present?
+          secondary
+        else
+          GlobalConfigService.load('CHATWOOT_WAFLOW_BRIDGE_SECRET', '').to_s.strip
+        end
+      end
+    end
   end
 
   def waflow_configured?

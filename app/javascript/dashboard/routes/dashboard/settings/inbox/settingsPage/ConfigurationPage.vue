@@ -1,4 +1,5 @@
 <script>
+import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import inboxMixin from 'shared/mixins/inboxMixin';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
@@ -10,6 +11,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'next/textarea/TextArea.vue';
+import SelectInput from 'dashboard/components-next/select/Select.vue';
 import WhatsappReauthorize from '../channels/whatsapp/Reauthorize.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
 
@@ -22,6 +24,7 @@ export default {
     SmtpSettings,
     NextButton,
     TextArea,
+    SelectInput,
     WhatsappReauthorize,
   },
   mixins: [inboxMixin],
@@ -44,12 +47,18 @@ export default {
       allowedDomains: '',
       isUpdatingAllowedDomains: false,
       isSettingDefaults: false,
+      selectedWaflowAgentId: '',
+      selectedWaflowAgentMode: 'suggest',
+      isUpdatingWaflowAgentConfig: false,
     };
   },
   validations: {
     whatsAppInboxAPIKey: { required },
   },
   computed: {
+    ...mapGetters({
+      waflowAgents: 'waflowAgents/getRecords',
+    }),
     isEmbeddedSignupWhatsApp() {
       return this.inbox.provider_config?.source === 'embedded_signup';
     },
@@ -58,6 +67,25 @@ export default {
     },
     isForwardingEnabled() {
       return !!this.inbox.forwarding_enabled;
+    },
+    waflowAgentOptions() {
+      const options = Array.isArray(this.waflowAgents) ? this.waflowAgents : [];
+      return [
+        { label: 'No default Waflow agent', value: '' },
+        ...options.map(agent => ({
+          label: agent.name || `Agent ${agent.id}`,
+          value: String(agent.id),
+        })),
+      ];
+    },
+    waflowAgentModeOptions() {
+      return [
+        { label: 'Suggest reply in composer', value: 'suggest' },
+        { label: 'Reply immediately with agent', value: 'reply' },
+      ];
+    },
+    waflowConfigEnabled() {
+      return this.isAPIInbox;
     },
   },
   watch: {
@@ -83,6 +111,11 @@ export default {
         this.inbox.selected_feature_flags || []
       ).includes('allow_mobile_webview');
       this.allowedDomains = this.inbox.allowed_domains || '';
+      this.selectedWaflowAgentId =
+        this.inbox.additional_attributes?.waflow_default_agent_id?.toString() ||
+        '';
+      this.selectedWaflowAgentMode =
+        this.inbox.additional_attributes?.waflow_agent_mode || 'suggest';
       this.$nextTick(() => {
         this.isSettingDefaults = false;
       });
@@ -182,6 +215,30 @@ export default {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
       } finally {
         this.isSyncingTemplates = false;
+      }
+    },
+    async updateWaflowAgentConfig() {
+      this.isUpdatingWaflowAgentConfig = true;
+      try {
+        const payload = {
+          id: this.inbox.id,
+          formData: false,
+          channel: {
+            additional_attributes: {
+              ...(this.inbox.additional_attributes || {}),
+              waflow_default_agent_id: this.selectedWaflowAgentId
+                ? Number(this.selectedWaflowAgentId)
+                : null,
+              waflow_agent_mode: this.selectedWaflowAgentMode || 'suggest',
+            },
+          },
+        };
+        await this.$store.dispatch('inboxes/updateInbox', payload);
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isUpdatingWaflowAgentConfig = false;
       }
     },
   },
@@ -345,6 +402,34 @@ export default {
         <label for="hmacMandatory" class="text-body-main text-n-slate-12">
           {{ $t('INBOX_MGMT.EDIT.ENABLE_HMAC.LABEL') }}
         </label>
+      </div>
+    </SettingsFieldSection>
+    <SettingsFieldSection
+      v-if="waflowConfigEnabled"
+      label="Waflow AI agent"
+      help-text="Choose the default Waflow agent for this inbox. The conversation composer will use this binding for manual AI actions."
+    >
+      <div class="flex flex-col gap-3">
+        <SelectInput
+          v-model="selectedWaflowAgentId"
+          :options="waflowAgentOptions"
+          placeholder="Select a Waflow agent"
+        />
+        <SelectInput
+          v-model="selectedWaflowAgentMode"
+          :options="waflowAgentModeOptions"
+          placeholder="Select a default action"
+        />
+        <div class="flex items-center justify-between gap-3">
+          <p class="mb-0 text-xs text-n-slate-11">
+            The default action controls what the Waflow AI button does from the conversation composer.
+          </p>
+          <NextButton
+            :label="'Save Waflow AI settings'"
+            :is-loading="isUpdatingWaflowAgentConfig"
+            @click="updateWaflowAgentConfig"
+          />
+        </div>
       </div>
     </SettingsFieldSection>
   </div>

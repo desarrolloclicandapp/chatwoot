@@ -367,6 +367,7 @@ export default {
       this.$store.dispatch('teams/get');
       this.$store.dispatch('labels/get');
       this.$store.dispatch('portals/index');
+      this.$store.dispatch('waflowAgents/get');
     },
     syncInboxData() {
       if (!this.inbox || !this.inbox.id) return;

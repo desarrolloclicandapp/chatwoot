@@ -1,5 +1,6 @@
 class WaflowAgents::ExecuteService < WaflowAgents::BaseService
   HISTORY_LIMIT = 20
+  SUPPORTED_MODES = %w[suggest reply].freeze
 
   def initialize(account:, conversation:, rule:)
     @account = account
@@ -7,14 +8,15 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     @rule = rule
   end
 
-  def perform(agent_id:)
+  def perform(agent_id:, mode: 'reply', extra_context: '')
     safe_agent_id = agent_id.to_i
     return failure_result('agent_id is required') if safe_agent_id <= 0
     return failure_result('Waflow backend is not configured') unless waflow_configured?
 
-    trigger_message = latest_chat_message
+    normalized_mode = normalize_mode(mode)
+    trigger_message = resolve_trigger_message
     return failure_result('No message available for this conversation', agent_id: safe_agent_id) unless trigger_message
-    unless trigger_message.incoming?
+    if @rule.present? && !trigger_message.incoming?
       return failure_result(
         'Waflow Agent automations only support incoming messages',
         agent_id: safe_agent_id
@@ -24,14 +26,47 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     response = HTTParty.post(
       "#{waflow_base_url}/chatwoot/workflow-agents/execute",
       headers: waflow_headers,
-      body: build_payload(agent_id: safe_agent_id, trigger_message: trigger_message).to_json,
+      body: build_payload(
+        agent_id: safe_agent_id,
+        trigger_message: trigger_message,
+        extra_context: extra_context
+      ).to_json,
       timeout: 45
     )
 
     body = parse_json_response(response)
-    result = normalize_result(response, body, safe_agent_id)
-    apply_result(result)
+    result = normalize_result(response, body, safe_agent_id).merge(mode: normalized_mode)
+    apply_result(result, mode: normalized_mode)
     result
+  rescue StandardError => e
+    capture_exception(e, account: @account)
+    Rails.logger.error("[WaflowAgents::ExecuteService] #{e.message}")
+    failure_result(e.message, agent_id: safe_agent_id)
+  end
+
+  def reset_memory(agent_id:)
+    safe_agent_id = agent_id.to_i
+    return failure_result('agent_id is required') if safe_agent_id <= 0
+    return failure_result('Waflow backend is not configured') unless waflow_configured?
+
+    response = HTTParty.post(
+      "#{waflow_base_url}/chatwoot/workflow-agents/reset-memory",
+      headers: waflow_headers,
+      body: build_reset_memory_payload(agent_id: safe_agent_id).to_json,
+      timeout: 30
+    )
+
+    body = parse_json_response(response)
+    return failure_result(body['error'].presence || body['error_message'].presence || 'Waflow reset memory failed', agent_id: safe_agent_id) unless response.success? && body['success'] == true
+
+    {
+      success: true,
+      status: 'completed',
+      agent_id: safe_agent_id,
+      deleted_count: body['deleted_count'].to_i,
+      memory_key: body['memory_key'].presence || default_memory_key,
+      error_message: nil
+    }
   rescue StandardError => e
     capture_exception(e, account: @account)
     Rails.logger.error("[WaflowAgents::ExecuteService] #{e.message}")
@@ -40,7 +75,7 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
 
   private
 
-  def build_payload(agent_id:, trigger_message:)
+  def build_payload(agent_id:, trigger_message:, extra_context:)
     {
       accountId: @account.id,
       agentId: agent_id,
@@ -52,8 +87,20 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
       inboxId: @conversation.inbox_id,
       incomingMessage: trigger_message.content_for_llm.to_s,
       channel: normalized_channel,
-      memoryKey: "chatwoot:#{@account.id}:conversation:#{@conversation.id}",
+      memoryKey: default_memory_key,
+      extraContext: extra_context.to_s,
       messageHistory: recent_message_history
+    }
+  end
+
+  def build_reset_memory_payload(agent_id:)
+    {
+      accountId: @account.id,
+      agentId: agent_id,
+      conversationId: @conversation.id,
+      contactId: @conversation.contact_id,
+      phone: @conversation.contact&.phone_number,
+      memoryKey: default_memory_key
     }
   end
 
@@ -84,7 +131,10 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     }
   end
 
-  def apply_result(result)
+  def apply_result(result, mode:)
+    return unless result[:success]
+    return unless mode == 'reply'
+
     send_reply_text(result[:reply_text])
     apply_labels(result[:add_tags], result[:remove_tags])
     @conversation.reload.bot_handoff! if result[:should_handoff]
@@ -94,13 +144,13 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     return if reply_text.blank?
     return if conversation_a_tweet?
 
+    content_attributes = { waflow_agent: true }
+    content_attributes[:automation_rule_id] = @rule.id if @rule&.id.present?
+
     params = {
       content: reply_text,
       private: false,
-      content_attributes: {
-        automation_rule_id: @rule.id,
-        waflow_agent: true
-      }
+      content_attributes: content_attributes
     }
     Messages::MessageBuilder.new(nil, @conversation.reload, params).perform
   end
@@ -143,9 +193,23 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     end
   end
 
+  def resolve_trigger_message
+    return latest_chat_message if @rule.present?
+
+    latest_incoming_chat_message
+  end
+
   def latest_chat_message
     @conversation.messages
                  .chat
+                 .reorder(created_at: :desc)
+                 .first
+  end
+
+  def latest_incoming_chat_message
+    @conversation.messages
+                 .chat
+                 .where(message_type: :incoming)
                  .reorder(created_at: :desc)
                  .first
   end
@@ -164,6 +228,17 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     return 'api' if inbox.api?
 
     inbox.channel_type.to_s.demodulize.underscore.presence || 'unknown'
+  end
+
+  def default_memory_key
+    "chatwoot:#{@account.id}:conversation:#{@conversation.id}"
+  end
+
+  def normalize_mode(mode)
+    safe_mode = mode.to_s.strip
+    return safe_mode if SUPPORTED_MODES.include?(safe_mode)
+
+    'reply'
   end
 
   def conversation_a_tweet?
@@ -187,7 +262,9 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
       tags_removed: [],
       crm_actions_error: nil,
       error_message: message,
-      agent_id: agent_id
+      agent_id: agent_id,
+      deleted_count: 0,
+      memory_key: default_memory_key
     }
   end
 end
