@@ -5,7 +5,13 @@ class WaflowWhatsappTemplates::FetchTemplatesService < WaflowWhatsappTemplates::
   end
 
   def perform
-    return failure_result('WAFLOW_BACKEND_URL o WAFLOW_CHATWOOT_AGENT_SECRET no configurados', 503) unless waflow_configured?
+    unless waflow_configured?
+      Rails.logger.error(
+        "[WaflowWhatsappTemplates::FetchTemplatesService] bridge_not_configured " \
+        "account_id=#{@account.id} inbox_id=#{@inbox.id} has_base_url=#{waflow_base_url.present?} has_secret=#{waflow_secret.present?}"
+      )
+      return failure_result('WAFLOW_BACKEND_URL o WAFLOW_CHATWOOT_AGENT_SECRET no configurados', 503)
+    end
 
     response = HTTParty.get(
       "#{waflow_base_url}/chatwoot/official-whatsapp/templates",
@@ -47,6 +53,11 @@ class WaflowWhatsappTemplates::FetchTemplatesService < WaflowWhatsappTemplates::
         }
       )
     end
+
+    Rails.logger.warn(
+      "[WaflowWhatsappTemplates::FetchTemplatesService] waflow_sync_failed " \
+      "account_id=#{@account.id} inbox_id=#{@inbox.id} status=#{response.code} error=#{body['error'].presence || 'unknown'}"
+    )
 
     failure_result(body['error'].presence || 'No se pudieron sincronizar los templates de Waflow', response.code.to_i)
   rescue StandardError => e

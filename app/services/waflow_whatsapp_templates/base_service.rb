@@ -9,7 +9,15 @@ class WaflowWhatsappTemplates::BaseService
   end
 
   def waflow_secret
-    @waflow_secret ||= GlobalConfigService.load('WAFLOW_CHATWOOT_AGENT_SECRET', '').to_s.strip
+    @waflow_secret ||= begin
+      primary = GlobalConfigService.load('WAFLOW_CHATWOOT_AGENT_SECRET', '').to_s.strip
+      next primary if primary.present?
+
+      secondary = GlobalConfigService.load('CHATWOOT_WAFLOW_AGENT_SECRET', '').to_s.strip
+      next secondary if secondary.present?
+
+      GlobalConfigService.load('CHATWOOT_WAFLOW_BRIDGE_SECRET', '').to_s.strip
+    end
   end
 
   def waflow_configured?
