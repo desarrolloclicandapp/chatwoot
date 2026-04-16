@@ -223,10 +223,21 @@ export default {
         this.waflowDefaultAgentId > 0
       );
     },
+    canOpenWaflowAgentSettings() {
+      return this.isAPIInbox && !this.isPrivate && !!this.inboxId && !!this.accountId;
+    },
     waflowAgentButtonLabel() {
+      const isSpanish = this.$i18n?.locale === 'es';
       return this.waflowAgentMode === 'reply'
-        ? 'Reply with Waflow AI'
-        : 'Suggest with Waflow AI';
+        ? isSpanish
+          ? 'Responder'
+          : 'Reply'
+        : isSpanish
+          ? 'Sugerir'
+          : 'Suggest';
+    },
+    waflowAgentSettingsLabel() {
+      return this.$i18n?.locale === 'es' ? 'Agente' : 'Agent';
     },
     isWaflowAgentActionDisabled() {
       if (!this.canUseWaflowAgent) return true;
@@ -976,6 +987,13 @@ export default {
         : safeReply;
       this.onFocus();
     },
+    openWaflowAgentSettings() {
+      if (!this.canOpenWaflowAgentSettings) return;
+
+      this.$router.push(
+        `/app/accounts/${this.accountId}/settings/inboxes/${this.inboxId}/configuration`
+      );
+    },
     async runWaflowAgent() {
       if (!this.canUseWaflowAgent || this.waflowAgentLoading) return;
 
@@ -1555,12 +1573,15 @@ export default {
         :portal-slug="connectedPortalSlug"
         :new-conversation-modal-active="newConversationModalActive"
         :enable-waflow-agent="canUseWaflowAgent"
+        :show-waflow-agent-settings="canOpenWaflowAgentSettings"
         :waflow-agent-label="waflowAgentButtonLabel"
+        :waflow-agent-settings-label="waflowAgentSettingsLabel"
         :is-waflow-agent-loading="waflowAgentLoading"
         :is-waflow-agent-disabled="isWaflowAgentActionDisabled"
         :show-waflow-reset="canUseWaflowAgent"
         @select-whatsapp-template="openWhatsappTemplateModal"
         @select-content-template="openContentTemplateModal"
+        @open-waflow-agent-settings="openWaflowAgentSettings"
         @run-waflow-agent="runWaflowAgent"
         @reset-waflow-agent-memory="resetWaflowAgentMemory"
         @replace-text="replaceText"

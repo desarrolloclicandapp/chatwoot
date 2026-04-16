@@ -146,6 +146,14 @@ export default {
       type: Boolean,
       default: false,
     },
+    showWaflowAgentSettings: {
+      type: Boolean,
+      default: false,
+    },
+    waflowAgentSettingsLabel: {
+      type: String,
+      default: 'Agent',
+    },
   },
   emits: [
     'replaceText',
@@ -155,6 +163,7 @@ export default {
     'toggleQuotedReply',
     'runWaflowAgent',
     'resetWaflowAgentMemory',
+    'openWaflowAgentSettings',
   ],
   setup(props) {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -393,6 +402,36 @@ export default {
         @click="$emit('selectWhatsappTemplate')"
       />
       <NextButton
+        v-if="showWaflowAgentSettings"
+        :label="waflowAgentSettingsLabel"
+        icon="i-lucide-settings-2"
+        color="slate"
+        variant="ghost"
+        size="sm"
+        @click="$emit('openWaflowAgentSettings')"
+      />
+      <NextButton
+        v-if="enableWaflowAgent"
+        :label="waflowAgentLabel"
+        icon="i-lucide-sparkles"
+        color="slate"
+        variant="ghost"
+        size="sm"
+        :disabled="isWaflowAgentDisabled || isWaflowAgentLoading"
+        :is-loading="isWaflowAgentLoading"
+        @click="$emit('runWaflowAgent')"
+      />
+      <NextButton
+        v-if="enableWaflowAgent && showWaflowReset"
+        v-tooltip.top-end="'Reset Waflow memory'"
+        icon="i-lucide-rotate-ccw"
+        color="slate"
+        variant="ghost"
+        size="sm"
+        :disabled="isWaflowAgentLoading"
+        @click="$emit('resetWaflowAgentMemory')"
+      />
+      <NextButton
         v-if="enableContentTemplates"
         v-tooltip.top-end="'Content Templates'"
         icon="i-ph-whatsapp-logo"
@@ -431,29 +470,6 @@ export default {
       />
     </div>
     <div class="right-wrap">
-      <NextButton
-        v-if="enableWaflowAgent"
-        :label="waflowAgentLabel"
-        icon="i-lucide-sparkles"
-        color="slate"
-        variant="ghost"
-        size="sm"
-        :disabled="isWaflowAgentDisabled || isWaflowAgentLoading"
-        :is-loading="isWaflowAgentLoading"
-        class="ltr:mr-2 rtl:ml-2"
-        @click="$emit('runWaflowAgent')"
-      />
-      <NextButton
-        v-if="enableWaflowAgent && showWaflowReset"
-        v-tooltip.top-end="'Reset Waflow memory'"
-        icon="i-lucide-rotate-ccw"
-        color="slate"
-        variant="ghost"
-        size="sm"
-        :disabled="isWaflowAgentLoading"
-        class="ltr:mr-2 rtl:ml-2"
-        @click="$emit('resetWaflowAgentMemory')"
-      />
       <NextButton
         :label="sendButtonText"
         type="submit"
