@@ -27,10 +27,25 @@ class AgentBuilder
   # @return [User] the found or created user.
   def find_or_create_user
     user = User.from_email(email)
-    return user if user
+    if user
+      validate_existing_user!(user)
+      return user
+    end
 
     temp_password = "1!aA#{SecureRandom.alphanumeric(12)}"
     User.create!(email: email, name: name, password: temp_password, password_confirmation: temp_password)
+  end
+
+  def validate_existing_user!(user)
+    if user.type == 'SuperAdmin'
+      user.errors.add(:email, 'belongs to a WaFloW superadmin and cannot be added as an inbox agent')
+      raise ActiveRecord::RecordInvalid.new(user)
+    end
+
+    if user.account_users.exists?(account_id: account.id)
+      user.errors.add(:email, 'is already part of this inbox account')
+      raise ActiveRecord::RecordInvalid.new(user)
+    end
   end
 
   # Checks if the user needs confirmation.
