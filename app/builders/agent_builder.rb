@@ -42,6 +42,11 @@ class AgentBuilder
       raise ActiveRecord::RecordInvalid.new(user)
     end
 
+    if user.account_users.where.not(account_id: account.id).exists?
+      user.errors.add(:email, 'already belongs to another WaFloW Inbox account')
+      raise ActiveRecord::RecordInvalid.new(user)
+    end
+
     if user.account_users.exists?(account_id: account.id)
       user.errors.add(:email, 'is already part of this inbox account')
       raise ActiveRecord::RecordInvalid.new(user)
