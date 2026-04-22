@@ -15,6 +15,7 @@ const { isAdmin } = useAdmin();
 const isLoading = ref(false);
 const isPolling = ref(false);
 const actionKey = ref('');
+const loadErrorMessage = ref('');
 const locationName = ref('');
 const slots = ref([]);
 const selectedSlotId = ref(null);
@@ -96,6 +97,7 @@ const loadConnections = async ({ silent = false } = {}) => {
     const response = await whatsappConnectionsAPI.get();
     const payload = unwrapPayload(response);
 
+    loadErrorMessage.value = '';
     locationName.value = payload.locationName || '';
     slots.value = Array.isArray(payload.slots) ? payload.slots : [];
     syncSelectedSlot();
@@ -107,8 +109,9 @@ const loadConnections = async ({ silent = false } = {}) => {
       };
     }
   } catch (error) {
+    loadErrorMessage.value = buildErrorMessage(error);
     if (!silent) {
-      useAlert(buildErrorMessage(error));
+      useAlert(loadErrorMessage.value);
     }
   } finally {
     if (!silent) isLoading.value = false;
@@ -250,7 +253,14 @@ onBeforeUnmount(() => {
     </section>
 
     <div
-      v-if="!slots.length && !isLoading"
+      v-if="loadErrorMessage && !isLoading"
+      class="flex items-center justify-center min-h-[16rem] rounded-2xl border border-n-ruby-8/40 bg-n-ruby-9/5 px-6 text-center text-sm text-n-ruby-11"
+    >
+      {{ loadErrorMessage }}
+    </div>
+
+    <div
+      v-else-if="!slots.length && !isLoading"
       class="flex items-center justify-center min-h-[16rem] rounded-2xl border border-n-weak bg-n-alpha-1 px-6 text-center text-sm text-n-slate-11"
     >
       {{ t('WHATSAPP_CONNECTION.EMPTY') }}

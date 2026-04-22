@@ -66,8 +66,15 @@ class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseS
     body = parse_json_response(response).deep_symbolize_keys
     body[:success] = response.success? if body[:success].nil?
     body[:http_status] = response.code.to_i
-    body[:error] ||= body[:message].presence || body[:error_message].presence unless response.success?
+    body[:error] ||= fallback_error_message(response, body) unless response.success?
     body
+  end
+
+  def fallback_error_message(response, body)
+    body[:message].presence ||
+      body[:error_message].presence ||
+      body[:error].presence ||
+      (response.code.to_i == 404 ? 'Waflow bridge endpoint not found' : "Waflow backend request failed (#{response.code})")
   end
 
   def failure_result(message, http_status)

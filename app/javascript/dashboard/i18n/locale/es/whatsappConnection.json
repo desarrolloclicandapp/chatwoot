@@ -1,7 +1,7 @@
 {
   "WHATSAPP_CONNECTION": {
     "TITLE": "Conexión WhatsApp",
-    "DESCRIPTION": "Revisa el estado de cada línea de WhatsApp vinculada a esta cuenta y gestiona los canales por QR sin salir de Chatwoot.",
+    "DESCRIPTION": "Revisa el estado de cada línea de WhatsApp vinculada a esta cuenta y gestiona los canales por QR sin salir de Waflow.",
     "LOCATION": "Espacio",
     "EMPTY": "Todavía no hay conexiones de WhatsApp vinculadas a esta cuenta.",
     "NO_SELECTION": "Selecciona una línea para revisar su estado y las acciones disponibles.",

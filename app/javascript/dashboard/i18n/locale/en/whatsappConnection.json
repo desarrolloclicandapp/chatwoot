@@ -1,7 +1,7 @@
 {
   "WHATSAPP_CONNECTION": {
     "TITLE": "WhatsApp Connection",
-    "DESCRIPTION": "Review the status of every WhatsApp line linked to this account and manage QR-based channels without leaving Chatwoot.",
+    "DESCRIPTION": "Review the status of every WhatsApp line linked to this account and manage QR-based channels without leaving Waflow.",
     "LOCATION": "Workspace",
     "EMPTY": "No WhatsApp connections are linked to this account yet.",
     "NO_SELECTION": "Select a line to inspect its status and available actions.",
