@@ -8,6 +8,7 @@ import { routes as inboxRoutes } from './inbox/routes';
 import { frontendURL } from '../../helper/URLHelper';
 import helpcenterRoutes from './helpcenter/helpcenter.routes';
 import campaignsRoutes from './campaigns/campaigns.routes';
+import whatsappConnectionRoutes from './whatsappConnection/whatsappConnection.routes';
 import { routes as captainRoutes } from './captain/captain.routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
@@ -28,6 +29,7 @@ export default {
         ...searchRoutes,
         ...notificationRoutes,
         ...helpcenterRoutes.routes,
+        ...whatsappConnectionRoutes.routes,
         ...campaignsRoutes.routes,
       ],
     },

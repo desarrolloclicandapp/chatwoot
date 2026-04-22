@@ -500,6 +500,13 @@ const menuItems = computed(() => {
       ],
     },
     {
+      name: 'WhatsApp Connection',
+      label: t('SIDEBAR.WHATSAPP_CONNECTION'),
+      icon: 'i-lucide-smartphone',
+      to: accountScopedRoute('whatsapp_connections_index'),
+      activeOn: ['whatsapp_connections_index'],
+    },
+    {
       name: 'Campaigns',
       label: t('SIDEBAR.CAMPAIGNS'),
       icon: 'i-lucide-megaphone',

@@ -1,0 +1,48 @@
+{
+  "WHATSAPP_CONNECTION": {
+    "TITLE": "Conexión WhatsApp",
+    "DESCRIPTION": "Revisa el estado de cada línea de WhatsApp vinculada a esta cuenta y gestiona los canales por QR sin salir de Chatwoot.",
+    "LOCATION": "Espacio",
+    "EMPTY": "Todavía no hay conexiones de WhatsApp vinculadas a esta cuenta.",
+    "NO_SELECTION": "Selecciona una línea para revisar su estado y las acciones disponibles.",
+    "INBOX": "Inbox",
+    "MODE": "Modo de conexión",
+    "QR_TITLE": "Conexión por QR",
+    "QR_DESCRIPTION": "Genera o refresca el código QR de los canales manuales desde esta pantalla.",
+    "QR_EMPTY": "Todavía no hay un QR disponible. Inicia o reconecta la línea para generar un código nuevo.",
+    "QR_UPDATED_AT": "QR actualizado",
+    "QR_ALT": "Código QR de WhatsApp",
+    "META_NOTE": "Esta línea se gestiona por Meta. El QR no está disponible para este canal.",
+    "ACTIONS": {
+      "REFRESH": "Actualizar",
+      "REFRESH_QR": "Actualizar QR",
+      "START": "Vincular por QR",
+      "RECONNECT": "Reconectar",
+      "PAUSE": "Pausar",
+      "DISCONNECT": "Desconectar"
+    },
+    "STATES": {
+      "connected": "Conectado",
+      "connecting": "Conectando",
+      "disconnected": "Desconectado",
+      "paused": "Pausado"
+    },
+    "MODES": {
+      "official_api": "Meta",
+      "qr": "QR"
+    },
+    "SUCCESS": {
+      "START": "La generación del QR se inició correctamente.",
+      "RECONNECT": "La línea se está reconectando.",
+      "PAUSE": "La línea fue pausada.",
+      "DISCONNECT": "La línea fue desconectada."
+    },
+    "CONFIRM": {
+      "PAUSE": "¿Pausar esta línea de WhatsApp?",
+      "DISCONNECT": "¿Desconectar esta línea de WhatsApp?"
+    },
+    "ERRORS": {
+      "GENERIC": "No se pudo completar la operación de conexión de WhatsApp."
+    }
+  }
+}

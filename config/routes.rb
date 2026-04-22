@@ -94,6 +94,15 @@ Rails.application.routes.draw do
           end
           resources :assignable_agents, only: [:index]
           resources :waflow_agents, only: [:index]
+          resources :whatsapp_connections, only: [:index], param: :slot_id do
+            member do
+              get :qr
+              post :start
+              post :reconnect
+              post :pause
+              delete :disconnect
+            end
+          end
           resource :audit_logs, only: [:show]
           resources :callbacks, only: [] do
             collection do
