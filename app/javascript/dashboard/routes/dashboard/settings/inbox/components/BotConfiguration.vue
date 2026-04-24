@@ -1,6 +1,7 @@
 <script>
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import inboxMixin from 'shared/mixins/inboxMixin';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
 import LoadingState from 'dashboard/components/widgets/LoadingState.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
@@ -13,6 +14,7 @@ export default {
     NextButton,
     SelectInput,
   },
+  mixins: [inboxMixin],
   props: {
     inbox: {
       type: Object,
@@ -21,62 +23,142 @@ export default {
   },
   data() {
     return {
-      selectedAgentBotId: null,
+      selectedWaflowAgentId: '',
+      selectedWaflowAgentMode: 'suggest',
+      isUpdatingWaflowAgentConfig: false,
     };
   },
   computed: {
     ...mapGetters({
-      agentBots: 'agentBots/getBots',
-      uiFlags: 'agentBots/getUIFlags',
+      waflowAgents: 'waflowAgents/getRecords',
+      waflowAgentUiFlags: 'waflowAgents/getUIFlags',
     }),
-    currentInboxId() {
-      return this.inbox?.id || this.$route.params.inboxId;
+    isSpanish() {
+      return this.$i18n?.locale === 'es';
     },
-    activeAgentBot() {
-      return this.$store.getters['agentBots/getActiveAgentBot'](
-        this.currentInboxId
-      );
+    channelLabel() {
+      return this.inbox?.name || `Inbox ${this.inbox?.id || ''}`.trim();
+    },
+    waflowAgentOptions() {
+      const options = Array.isArray(this.waflowAgents) ? this.waflowAgents : [];
+      return [
+        {
+          label: this.isSpanish ? 'Sin agente' : 'No agent',
+          value: '',
+        },
+        ...options.map(agent => ({
+          label: agent.name || `Agent ${agent.id}`,
+          value: String(agent.id),
+        })),
+      ];
+    },
+    waflowAgentModeOptions() {
+      return [
+        {
+          label: this.isSpanish
+            ? 'Sugerir respuesta'
+            : 'Suggest reply',
+          value: 'suggest',
+        },
+        {
+          label: this.isSpanish
+            ? 'Responder automaticamente'
+            : 'Reply automatically',
+          value: 'reply',
+        },
+      ];
+    },
+    sectionLabel() {
+      return this.isSpanish ? 'Agente Waflow' : 'Waflow agent';
+    },
+    sectionHelpText() {
+      return this.isSpanish
+        ? 'Elige que agente trabaja en este canal.'
+        : 'Choose which agent works in this channel.';
+    },
+    agentPlaceholder() {
+      return this.isSpanish
+        ? 'Selecciona un agente'
+        : 'Select an agent';
+    },
+    modePlaceholder() {
+      return this.isSpanish
+        ? 'Selecciona como responder'
+        : 'Select response mode';
+    },
+    statusText() {
+      if (!this.selectedWaflowAgentId) {
+        return this.isSpanish
+          ? 'Selecciona un agente para activar este canal.'
+          : 'Select an agent to activate this channel.';
+      }
+
+      if (this.selectedWaflowAgentMode === 'reply') {
+        return this.isSpanish
+          ? 'Respondera automaticamente a cada mensaje entrante.'
+          : 'It will automatically reply to every incoming message.';
+      }
+
+      return this.isSpanish
+        ? 'Mostrara sugerencias en el compositor.'
+        : 'It will show suggestions in the composer.';
+    },
+    saveLabel() {
+      return this.isSpanish ? 'Guardar configuracion' : 'Save settings';
+    },
+    unsupportedChannelMessage() {
+      return this.isSpanish
+        ? 'El agente Waflow esta disponible para canales de Waflow Inbox.'
+        : 'The Waflow agent is available for Waflow Inbox channels.';
+    },
+    isFetchingAgents() {
+      return !!this.waflowAgentUiFlags?.fetchingList;
+    },
+    canSave() {
+      return this.isAPIInbox && !this.isUpdatingWaflowAgentConfig;
     },
   },
   watch: {
-    activeAgentBot() {
-      this.selectedAgentBotId = this.activeAgentBot.id;
+    inbox() {
+      this.setDefaults();
     },
   },
   mounted() {
-    this.fetchBotData();
+    this.setDefaults();
+    this.$store.dispatch('waflowAgents/get');
   },
-
   methods: {
-    fetchBotData() {
-      this.$store.dispatch('agentBots/get');
-      this.$store.dispatch('agentBots/fetchAgentBotInbox', this.currentInboxId);
+    setDefaults() {
+      this.selectedWaflowAgentId =
+        this.inbox.additional_attributes?.waflow_default_agent_id?.toString() ||
+        '';
+      this.selectedWaflowAgentMode =
+        this.inbox.additional_attributes?.waflow_agent_mode || 'suggest';
     },
-    async updateActiveAgentBot() {
+    async updateWaflowAgentConfig() {
+      if (!this.canSave) return;
+
+      this.isUpdatingWaflowAgentConfig = true;
       try {
-        await this.$store.dispatch('agentBots/setAgentBotInbox', {
-          inboxId: this.inbox.id,
-          // Added this to make sure that empty values are not sent to the API
-          botId: this.selectedAgentBotId ? this.selectedAgentBotId : undefined,
-        });
-        useAlert(this.$t('AGENT_BOTS.BOT_CONFIGURATION.SUCCESS_MESSAGE'));
+        const payload = {
+          id: this.inbox.id,
+          formData: false,
+          channel: {
+            additional_attributes: {
+              ...(this.inbox.additional_attributes || {}),
+              waflow_default_agent_id: this.selectedWaflowAgentId
+                ? Number(this.selectedWaflowAgentId)
+                : null,
+              waflow_agent_mode: this.selectedWaflowAgentMode || 'suggest',
+            },
+          },
+        };
+        await this.$store.dispatch('inboxes/updateInbox', payload);
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
       } catch (error) {
-        useAlert(this.$t('AGENT_BOTS.BOT_CONFIGURATION.ERROR_MESSAGE'));
-      }
-    },
-    async disconnectBot() {
-      try {
-        await this.$store.dispatch('agentBots/disconnectBot', {
-          inboxId: this.inbox.id,
-        });
-        useAlert(
-          this.$t('AGENT_BOTS.BOT_CONFIGURATION.DISCONNECTED_SUCCESS_MESSAGE')
-        );
-      } catch (error) {
-        useAlert(
-          error?.message ||
-            this.$t('AGENT_BOTS.BOT_CONFIGURATION.DISCONNECTED_ERROR_MESSAGE')
-        );
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isUpdatingWaflowAgentConfig = false;
       }
     },
   },
@@ -85,41 +167,58 @@ export default {
 
 <template>
   <div class="mx-6 max-w-4xl">
-    <LoadingState v-if="uiFlags.isFetching || uiFlags.isFetchingAgentBot" />
-    <form v-else @submit.prevent="updateActiveAgentBot">
-      <SettingsFieldSection
-        :label="$t('AGENT_BOTS.BOT_CONFIGURATION.TITLE')"
-        :help-text="$t('AGENT_BOTS.BOT_CONFIGURATION.DESC')"
-        class="[&>div]:!items-start"
+    <LoadingState v-if="isFetchingAgents" />
+    <div v-else>
+      <div
+        v-if="!isAPIInbox"
+        class="rounded-xl border border-n-weak bg-n-alpha-2 p-5 text-sm text-n-slate-11"
       >
-        <SelectInput
-          v-model="selectedAgentBotId"
-          :placeholder="$t('AGENT_BOTS.BOT_CONFIGURATION.SELECT_PLACEHOLDER')"
-          :options="agentBots.map(bot => ({ value: bot.id, label: bot.name }))"
-        />
-        <template #extra>
-          <div class="grid grid-cols-1 lg:grid-cols-8 mt-3">
-            <div class="col-span-1 lg:col-span-2 invisible" />
-            <div class="col-span-1 lg:col-span-6 flex gap-2 mx-1">
-              <NextButton
-                type="submit"
-                :label="$t('AGENT_BOTS.BOT_CONFIGURATION.SUBMIT')"
-                :is-loading="uiFlags.isSettingAgentBot"
-              />
-              <NextButton
-                type="button"
-                :disabled="!selectedAgentBotId"
-                :is-loading="uiFlags.isDisconnecting"
-                faded
-                ruby
-                @click="disconnectBot"
-              >
-                {{ $t('AGENT_BOTS.BOT_CONFIGURATION.DISCONNECT') }}
-              </NextButton>
+        {{ unsupportedChannelMessage }}
+      </div>
+      <form v-else @submit.prevent="updateWaflowAgentConfig">
+        <SettingsFieldSection
+          :label="sectionLabel"
+          :help-text="sectionHelpText"
+          class="[&>div]:!items-start"
+        >
+          <div class="flex flex-col gap-3">
+            <div class="rounded-lg border border-n-weak bg-n-alpha-2 px-4 py-3">
+              <p class="mb-1 text-xs font-medium uppercase tracking-wide text-n-slate-11">
+                {{ isSpanish ? 'Canal activo' : 'Active channel' }}
+              </p>
+              <p class="mb-0 text-sm font-medium text-n-slate-12">
+                {{ channelLabel }}
+              </p>
             </div>
+            <SelectInput
+              v-model="selectedWaflowAgentId"
+              :options="waflowAgentOptions"
+              :placeholder="agentPlaceholder"
+            />
+            <SelectInput
+              v-model="selectedWaflowAgentMode"
+              :options="waflowAgentModeOptions"
+              :placeholder="modePlaceholder"
+            />
+            <p class="mb-0 text-xs text-n-slate-11">
+              {{ statusText }}
+            </p>
           </div>
-        </template>
-      </SettingsFieldSection>
-    </form>
+          <template #extra>
+            <div class="grid grid-cols-1 lg:grid-cols-8 mt-3">
+              <div class="col-span-1 lg:col-span-2 invisible" />
+              <div class="col-span-1 lg:col-span-6 flex justify-end mx-1">
+                <NextButton
+                  type="submit"
+                  :label="saveLabel"
+                  :disabled="!canSave"
+                  :is-loading="isUpdatingWaflowAgentConfig"
+                />
+              </div>
+            </div>
+          </template>
+        </SettingsFieldSection>
+      </form>
+    </div>
   </div>
 </template>

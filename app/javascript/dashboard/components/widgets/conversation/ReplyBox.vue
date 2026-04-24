@@ -220,7 +220,8 @@ export default {
       return (
         this.isAPIInbox &&
         !this.isPrivate &&
-        this.waflowDefaultAgentId > 0
+        this.waflowDefaultAgentId > 0 &&
+        this.waflowAgentMode === 'suggest'
       );
     },
     canOpenWaflowAgentSettings() {
@@ -228,21 +229,13 @@ export default {
     },
     waflowAgentButtonLabel() {
       const isSpanish = this.$i18n?.locale === 'es';
-      return this.waflowAgentMode === 'reply'
-        ? isSpanish
-          ? 'Responder'
-          : 'Reply'
-        : isSpanish
-          ? 'Sugerir'
-          : 'Suggest';
+      return isSpanish ? 'Sugerir respuesta' : 'Suggest reply';
     },
     waflowAgentSettingsLabel() {
       return this.$i18n?.locale === 'es' ? 'Agente' : 'Agent';
     },
     isWaflowAgentActionDisabled() {
       if (!this.canUseWaflowAgent) return true;
-      if (this.waflowAgentMode === 'reply') return this.isEditorDisabled;
-
       return false;
     },
     messagePlaceHolder() {
@@ -991,7 +984,7 @@ export default {
       if (!this.canOpenWaflowAgentSettings) return;
 
       this.$router.push(
-        `/app/accounts/${this.accountId}/settings/inboxes/${this.inboxId}/configuration`
+        `/app/accounts/${this.accountId}/settings/inboxes/${this.inboxId}/bot-configuration`
       );
     },
     async runWaflowAgent() {
@@ -999,6 +992,7 @@ export default {
 
       this.waflowAgentLoading = true;
       try {
+        const isSpanish = this.$i18n?.locale === 'es';
         const response = await ConversationApi.runWaflowAgent({
           conversationId: this.currentChat.id,
           agentId: this.waflowDefaultAgentId,
@@ -1010,18 +1004,34 @@ export default {
 
         if (this.waflowAgentMode === 'suggest') {
           if (!replyText) {
-            useAlert('Waflow AI did not return a suggestion.');
+            useAlert(
+              isSpanish
+                ? 'El agente Waflow no devolvio una sugerencia.'
+                : 'Waflow agent did not return a suggestion.'
+            );
             return;
           }
           this.applyWaflowSuggestion(replyText);
-          useAlert('Waflow AI suggestion inserted into the composer.');
+          useAlert(
+            isSpanish
+              ? 'Sugerencia del agente Waflow insertada.'
+              : 'Waflow agent suggestion inserted into the composer.'
+          );
           return;
         }
 
-        useAlert('Waflow AI replied in this conversation.');
+        useAlert(
+          isSpanish
+            ? 'El agente Waflow respondio en esta conversacion.'
+            : 'Waflow agent replied in this conversation.'
+        );
       } catch (error) {
+        const isSpanish = this.$i18n?.locale === 'es';
         const errorMessage =
-          error?.response?.data?.error || 'Waflow AI could not complete the action.';
+          error?.response?.data?.error ||
+          (isSpanish
+            ? 'El agente Waflow no pudo completar la accion.'
+            : 'Waflow agent could not complete the action.');
         useAlert(errorMessage);
       } finally {
         this.waflowAgentLoading = false;
@@ -1037,14 +1047,23 @@ export default {
           agentId: this.waflowDefaultAgentId,
         });
         const deletedCount = response?.data?.payload?.deleted_count ?? 0;
+        const isSpanish = this.$i18n?.locale === 'es';
         useAlert(
           deletedCount > 0
-            ? `Waflow AI memory reset. ${deletedCount} messages cleared.`
-            : 'Waflow AI memory reset.'
+            ? isSpanish
+              ? `Memoria del agente Waflow reiniciada. ${deletedCount} mensajes borrados.`
+              : `Waflow agent memory reset. ${deletedCount} messages cleared.`
+            : isSpanish
+              ? 'Memoria del agente Waflow reiniciada.'
+              : 'Waflow agent memory reset.'
         );
       } catch (error) {
+        const isSpanish = this.$i18n?.locale === 'es';
         const errorMessage =
-          error?.response?.data?.error || 'Waflow AI memory could not be reset.';
+          error?.response?.data?.error ||
+          (isSpanish
+            ? 'No se pudo reiniciar la memoria del agente Waflow.'
+            : 'Waflow agent memory could not be reset.');
         useAlert(errorMessage);
       } finally {
         this.waflowAgentLoading = false;

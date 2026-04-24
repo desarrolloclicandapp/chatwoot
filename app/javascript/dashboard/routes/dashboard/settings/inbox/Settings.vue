@@ -185,6 +185,7 @@ export default {
       }
 
       if (
+        this.isAPIInbox ||
         this.isFeatureEnabledonAccount(this.accountId, FEATURE_FLAGS.AGENT_BOTS)
       ) {
         visibleToAllChannelTabs = [

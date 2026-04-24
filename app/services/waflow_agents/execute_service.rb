@@ -8,13 +8,13 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     @rule = rule
   end
 
-  def perform(agent_id:, mode: 'reply', extra_context: '')
+  def perform(agent_id:, mode: 'reply', extra_context: '', trigger_message: nil)
     safe_agent_id = agent_id.to_i
     return failure_result('agent_id is required') if safe_agent_id <= 0
     return failure_result('Waflow backend is not configured') unless waflow_configured?
 
     normalized_mode = normalize_mode(mode)
-    trigger_message = resolve_trigger_message
+    trigger_message = resolve_trigger_message(trigger_message)
     return failure_result('No message available for this conversation', agent_id: safe_agent_id) unless trigger_message
     if @rule.present? && !trigger_message.incoming?
       return failure_result(
@@ -193,7 +193,8 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     end
   end
 
-  def resolve_trigger_message
+  def resolve_trigger_message(explicit_message = nil)
+    return explicit_message if explicit_message.present?
     return latest_chat_message if @rule.present?
 
     latest_incoming_chat_message
