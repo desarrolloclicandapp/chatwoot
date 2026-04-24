@@ -135,10 +135,10 @@ RSpec.describe 'Agents API', type: :request do
 
         expect(response).to have_http_status(:success)
         response_data = response.parsed_body
-        expect(response_data['role']).to eq('administrator')
+        expect(response_data['role']).to eq('agent')
         expect(response_data['availability_status']).to eq('busy')
         expect(response_data['auto_offline']).to be(false)
-        expect(other_agent.account_users.first.role).to eq('administrator')
+        expect(other_agent.account_users.first.role).to eq('agent')
       end
     end
   end
@@ -177,6 +177,31 @@ RSpec.describe 'Agents API', type: :request do
         expect(response.parsed_body['email']).to eq(params[:email])
         expect(account.users.last.name).to eq('NewUser')
       end
+
+      it 'always creates new users as agents even when administrator role is requested' do
+        post "/api/v1/accounts/#{account.id}/agents",
+             params: params.merge(role: :administrator),
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['role']).to eq('agent')
+        expect(User.from_email(params[:email]).account_users.find_by(account: account).role).to eq('agent')
+      end
+
+      it 'prevents adding more than three users to the account' do
+        other_agent
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/agents",
+               params: params.merge(email: Faker::Internet.email),
+               headers: admin.create_new_auth_token,
+               as: :json
+        end.not_to change(User, :count)
+
+        expect(response).to have_http_status(:payment_required)
+        expect(response.body).to include('Account limit exceeded. Please purchase more licenses')
+      end
     end
   end
 
@@ -195,21 +220,34 @@ RSpec.describe 'Agents API', type: :request do
     context 'when authenticated as admin' do
       it 'creates multiple agents successfully' do
         expect do
-          post "/api/v1/accounts/#{account.id}/agents/bulk_create", params: bulk_create_params, headers: admin.create_new_auth_token
-        end.to change(User, :count).by(3)
+          post "/api/v1/accounts/#{account.id}/agents/bulk_create",
+               params: { emails: ['test1@example.com'] },
+               headers: admin.create_new_auth_token
+        end.to change(User, :count).by(1)
 
         expect(response).to have_http_status(:ok)
       end
 
       it 'ignores errors if account_user already exists' do
-        params = { emails: ['exists@example.com', 'test1@example.com', 'test2@example.com'] }
+        params = { emails: ['exists@example.com', 'test1@example.com'] }
 
         expect do
           post "/api/v1/accounts/#{account.id}/agents/bulk_create", params: params,
                                                                     headers: admin.create_new_auth_token
-        end.to change(User, :count).by(2)
+        end.to change(User, :count).by(1)
 
         expect(response).to have_http_status(:ok)
+      end
+
+      it 'prevents bulk creating users beyond the three user account limit' do
+        expect do
+          post "/api/v1/accounts/#{account.id}/agents/bulk_create",
+               params: { emails: ['test1@example.com', 'test2@example.com'] },
+               headers: admin.create_new_auth_token
+        end.not_to change(User, :count)
+
+        expect(response).to have_http_status(:payment_required)
+        expect(response.body).to include('Account limit exceeded. Please purchase more licenses')
       end
     end
   end

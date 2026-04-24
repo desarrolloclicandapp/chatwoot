@@ -46,7 +46,9 @@ RSpec.describe 'Agents API', type: :request do
       it 'removes onboarding step from account custom attributes' do
         account.update(custom_attributes: { onboarding_step: 'completed' })
 
-        post "/api/v1/accounts/#{account.id}/agents/bulk_create", params: bulk_create_params, headers: admin.create_new_auth_token
+        post "/api/v1/accounts/#{account.id}/agents/bulk_create",
+             params: { emails: ['test1@example.com', 'test2@example.com'] },
+             headers: admin.create_new_auth_token
 
         expect(account.reload.custom_attributes).not_to include('onboarding_step')
       end

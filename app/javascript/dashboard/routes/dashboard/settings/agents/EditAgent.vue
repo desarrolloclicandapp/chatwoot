@@ -49,18 +49,15 @@ const { t } = useI18n();
 
 const agentName = ref(props.name);
 const agentAvailability = ref(props.availability);
-const selectedRoleId = ref(props.customRoleId || props.type);
 const agentCredentials = ref({ email: props.email });
 
 const rules = {
   agentName: { required, minLength: minLength(1) },
-  selectedRoleId: { required },
   agentAvailability: { required },
 };
 
 const v$ = useVuelidate(rules, {
   agentName,
-  selectedRoleId,
   agentAvailability,
 });
 
@@ -69,37 +66,6 @@ const pageTitle = computed(
 );
 
 const uiFlags = useMapGetter('agents/getUIFlags');
-const getCustomRoles = useMapGetter('customRole/getCustomRoles');
-
-const roles = computed(() => {
-  const defaultRoles = [
-    {
-      id: 'administrator',
-      name: 'administrator',
-      label: t('AGENT_MGMT.AGENT_TYPES.ADMINISTRATOR'),
-    },
-    {
-      id: 'agent',
-      name: 'agent',
-      label: t('AGENT_MGMT.AGENT_TYPES.AGENT'),
-    },
-  ];
-
-  const customRoles = getCustomRoles.value.map(role => ({
-    id: role.id,
-    name: `custom_${role.id}`,
-    label: role.name,
-  }));
-
-  return [...defaultRoles, ...customRoles];
-});
-
-const selectedRole = computed(() =>
-  roles.value.find(
-    role =>
-      role.id === selectedRoleId.value || role.name === selectedRoleId.value
-  )
-);
 
 const statusList = computed(() => {
   return [
@@ -127,13 +93,6 @@ const editAgent = async () => {
       name: agentName.value,
       availability: agentAvailability.value,
     };
-
-    if (selectedRole.value.name.startsWith('custom_')) {
-      payload.custom_role_id = selectedRole.value.id;
-    } else {
-      payload.role = selectedRole.value.name;
-      payload.custom_role_id = null;
-    }
 
     await store.dispatch('agents/update', payload);
     useAlert(t('AGENT_MGMT.EDIT.API.SUCCESS_MESSAGE'));
@@ -166,20 +125,6 @@ const resetPassword = async () => {
             :placeholder="$t('AGENT_MGMT.EDIT.FORM.NAME.PLACEHOLDER')"
             @input="v$.agentName.$touch"
           />
-        </label>
-      </div>
-
-      <div class="w-full">
-        <label :class="{ error: v$.selectedRoleId.$error }">
-          {{ $t('AGENT_MGMT.EDIT.FORM.AGENT_TYPE.LABEL') }}
-          <select v-model="selectedRoleId" @change="v$.selectedRoleId.$touch">
-            <option v-for="role in roles" :key="role.id" :value="role.id">
-              {{ role.label }}
-            </option>
-          </select>
-          <span v-if="v$.selectedRoleId.$error" class="message">
-            {{ $t('AGENT_MGMT.EDIT.FORM.AGENT_TYPE.ERROR') }}
-          </span>
         </label>
       </div>
 

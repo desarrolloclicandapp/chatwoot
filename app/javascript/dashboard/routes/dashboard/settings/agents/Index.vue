@@ -27,6 +27,7 @@ const showEditPopup = ref(false);
 const agentAPI = ref({ message: '' });
 const currentAgent = ref({});
 const searchQuery = ref('');
+const maxAccountUsers = 3;
 
 const deleteConfirmText = computed(
   () => `${t('AGENT_MGMT.DELETE.CONFIRM.YES')} ${currentAgent.value.name}`
@@ -39,6 +40,10 @@ const deleteMessage = computed(() => {
 });
 
 const agentList = computed(() => getters['agents/getAgents'].value);
+const canAddAgent = computed(() => agentList.value.length < maxAccountUsers);
+const availableAgentSlots = computed(() =>
+  Math.max(maxAccountUsers - agentList.value.length, 0)
+);
 
 const filteredAgentList = computed(() => {
   const query = searchQuery.value.trim();
@@ -107,6 +112,11 @@ const showAlertMessage = message => {
 };
 
 const openAddPopup = () => {
+  if (!canAddAgent.value) {
+    useAlert(t('AGENT_MGMT.LIMIT_REACHED'));
+    return;
+  }
+
   showAddPopup.value = true;
 };
 const hideAddPopup = () => {
@@ -161,14 +171,21 @@ const confirmDeletion = () => {
         feature-name="agents"
       >
         <template v-if="agentList?.length" #count>
-          <span class="text-body-main text-n-slate-11">
-            {{ $t('AGENT_MGMT.COUNT', { n: agentList.length }) }}
-          </span>
+          <div class="flex items-center gap-2">
+            <span class="text-body-main text-n-slate-11">
+              {{ $t('AGENT_MGMT.COUNT', { n: agentList.length }) }}
+            </span>
+            <span class="text-body-small text-n-slate-10">
+              {{ $t('AGENT_MGMT.SLOTS_LEFT', { n: availableAgentSlots }) }}
+            </span>
+          </div>
         </template>
         <template #actions>
           <Button
             :label="$t('AGENT_MGMT.HEADER_BTN_TXT')"
             size="sm"
+            :disabled="!canAddAgent"
+            v-tooltip.top="!canAddAgent ? $t('AGENT_MGMT.LIMIT_REACHED') : ''"
             @click="openAddPopup"
           />
         </template>
