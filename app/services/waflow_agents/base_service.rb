@@ -1,11 +1,21 @@
 class WaflowAgents::BaseService
   private
 
-  def waflow_base_url
-    @waflow_base_url ||= begin
-      raw = GlobalConfigService.load('WAFLOW_BACKEND_URL', '').to_s.strip
-      raw.sub(%r{/+\z}, '')
+  def waflow_base_urls
+    @waflow_base_urls ||= begin
+      [
+        GlobalConfigService.load('WAFLOW_BACKEND_URLS', ''),
+        GlobalConfigService.load('WAFLOW_BACKEND_URL', '')
+      ]
+        .flat_map { |raw| raw.to_s.split(/[\s,;]+/) }
+        .map { |value| value.to_s.strip.sub(%r{/+\z}, '') }
+        .reject(&:blank?)
+        .uniq
     end
+  end
+
+  def waflow_base_url
+    waflow_base_urls.first
   end
 
   def waflow_secret
@@ -25,7 +35,7 @@ class WaflowAgents::BaseService
   end
 
   def waflow_configured?
-    waflow_base_url.present? && waflow_secret.present?
+    waflow_base_urls.present? && waflow_secret.present?
   end
 
   def waflow_headers

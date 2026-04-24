@@ -1,46 +1,40 @@
-class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseService
+class WaflowConversationMigrations::ProxyService < WaflowAgents::BaseService
   DEFAULT_TIMEOUT = 30
   ACCOUNT_NOT_LINKED_ERROR = 'No existe una cuenta Waflow vinculada a este accountId'.freeze
   BRIDGE_NOT_FOUND_ERROR = 'Waflow bridge endpoint not found'.freeze
-  BACKEND_CACHE_KEY_PREFIX = 'waflow_whatsapp_connections/backend'.freeze
+  BACKEND_CACHE_KEY_PREFIX = 'waflow_conversation_migrations/backend'.freeze
   BACKEND_CACHE_TTL = 10.minutes
 
-  def initialize(account:)
+  def initialize(account:, conversation:)
     @account = account
+    @conversation = conversation
   end
 
-  def list
-    request_with_backend_resolution(:get, '/chatwoot/account-connections', use_discovery_response: true)
+  def options
+    request_with_backend_resolution(:get, '/chatwoot/dashboard/migrate-channel/options')
   end
 
-  def qr(slot_id:)
-    request_with_backend_resolution(:get, "/chatwoot/account-connections/#{slot_id}/qr")
-  end
+  def migrate(target_slot_id:, resolve_source:)
+    safe_target_slot_id = target_slot_id.to_i
+    return failure_result('targetSlotId is required', :bad_request) if safe_target_slot_id <= 0
 
-  def start(slot_id:)
-    request_with_backend_resolution(:post, "/chatwoot/account-connections/#{slot_id}/start")
-  end
-
-  def reconnect(slot_id:)
-    request_with_backend_resolution(:post, "/chatwoot/account-connections/#{slot_id}/reconnect")
-  end
-
-  def pause(slot_id:)
-    request_with_backend_resolution(:post, "/chatwoot/account-connections/#{slot_id}/pause")
-  end
-
-  def disconnect(slot_id:)
-    request_with_backend_resolution(:delete, "/chatwoot/account-connections/#{slot_id}/disconnect")
+    request_with_backend_resolution(
+      :post,
+      '/chatwoot/dashboard/migrate-channel/migrate',
+      body: {
+        targetSlotId: safe_target_slot_id,
+        resolveSource: resolve_source == true
+      }
+    )
   end
 
   private
 
-  def request_with_backend_resolution(method, path, use_discovery_response: false)
+  def request_with_backend_resolution(method, path, body: {})
     discovery = resolve_backend_for_account
     return discovery[:error_result] unless discovery[:success]
-    return discovery[:list_response] if use_discovery_response
 
-    response = request_to_backend(method, discovery[:base_url], path)
+    response = request_to_backend(method, discovery[:base_url], path, body: body)
     return response unless backend_resolution_retryable?(response)
 
     reset_backend_resolution!
@@ -49,7 +43,7 @@ class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseS
     refreshed_discovery = resolve_backend_for_account(force_refresh: true)
     return refreshed_discovery[:error_result] unless refreshed_discovery[:success]
 
-    request_to_backend(method, refreshed_discovery[:base_url], path)
+    request_to_backend(method, refreshed_discovery[:base_url], path, body: body)
   end
 
   def resolve_backend_for_account(force_refresh: false)
@@ -68,14 +62,8 @@ class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseS
       cached_probe = probe_backend(cached_base_url)
       case cached_probe[:status]
       when :success
-        Rails.logger.info("[WaflowWhatsappConnections] account=#{@account.id} resolved via cached backend=#{cached_base_url}")
-        return @resolved_backend_for_account = {
-          success: true,
-          base_url: cached_base_url,
-          list_response: cached_probe[:response]
-        }
+        return @resolved_backend_for_account = { success: true, base_url: cached_base_url }
       when :account_not_found, :bridge_not_found
-        Rails.logger.warn("[WaflowWhatsappConnections] account=#{@account.id} cache miss for backend=#{cached_base_url}, refreshing backend resolution")
         clear_cached_backend_base_url
       else
         return @resolved_backend_for_account = {
@@ -96,12 +84,7 @@ class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseS
       case probe[:status]
       when :success
         cache_backend_base_url(base_url)
-        Rails.logger.info("[WaflowWhatsappConnections] account=#{@account.id} resolved via backend=#{base_url}")
-        return @resolved_backend_for_account = {
-          success: true,
-          base_url: base_url,
-          list_response: probe[:response]
-        }
+        return @resolved_backend_for_account = { success: true, base_url: base_url }
       when :account_not_found
         account_not_found_responses << probe[:response]
       when :bridge_not_found
@@ -111,24 +94,17 @@ class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseS
       end
     end
 
-    error_result = if other_failure_responses.any?
-                     other_failure_responses.first
-                   elsif bridge_not_found_responses.any?
-                     bridge_not_found_responses.first
-                   elsif account_not_found_responses.any?
-                     account_not_found_responses.first
-                   else
-                     failure_result('Waflow backend is not configured', :service_unavailable)
-                   end
-
     @resolved_backend_for_account = {
       success: false,
-      error_result: error_result
+      error_result: other_failure_responses.first ||
+        bridge_not_found_responses.first ||
+        account_not_found_responses.first ||
+        failure_result('Waflow backend is not configured', :service_unavailable)
     }
   end
 
   def probe_backend(base_url)
-    response = request_to_backend(:get, base_url, '/chatwoot/account-connections')
+    response = request_to_backend(:get, base_url, '/chatwoot/account-connections', include_conversation: false)
     status =
       if response[:success]
         :success
@@ -143,33 +119,40 @@ class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseS
     { status: status, response: response }
   end
 
-  def request_to_backend(method, base_url, path)
+  def request_to_backend(method, base_url, path, body: {}, include_conversation: true)
     response = HTTParty.public_send(
       method,
       "#{base_url}#{path}",
-      **request_options(method)
+      **request_options(method, body: body, include_conversation: include_conversation)
     )
 
     normalize_response(response, base_url)
   rescue StandardError => e
     capture_exception(e, account: @account)
-    Rails.logger.error("[WaflowWhatsappConnections] #{e.class}: #{e.message} (backend=#{base_url})")
+    Rails.logger.error("[WaflowConversationMigrations] #{e.class}: #{e.message} (backend=#{base_url})")
     failure_result(e.message, :internal_server_error).merge(waflow_base_url: base_url)
   end
 
-  def request_options(method)
+  def request_options(method, body:, include_conversation:)
+    payload = { accountId: @account.id }
+    payload[:conversationId] = conversation_identifier if include_conversation
+
     options = {
       headers: waflow_headers,
       timeout: DEFAULT_TIMEOUT
     }
 
     if method.to_sym == :get
-      options[:query] = { accountId: @account.id }
+      options[:query] = payload
     else
-      options[:body] = { accountId: @account.id }.to_json
+      options[:body] = payload.merge(body).to_json
     end
 
     options
+  end
+
+  def conversation_identifier
+    @conversation.display_id.presence || @conversation.id
   end
 
   def normalize_response(response, base_url)
@@ -212,20 +195,20 @@ class WaflowWhatsappConnections::ProxyService < WaflowWhatsappConnections::BaseS
     clear_cached_backend_base_url
     nil
   rescue StandardError => e
-    Rails.logger.warn("[WaflowWhatsappConnections] failed to read backend cache for account=#{@account.id}: #{e.message}")
+    Rails.logger.warn("[WaflowConversationMigrations] failed to read backend cache for account=#{@account.id}: #{e.message}")
     nil
   end
 
   def cache_backend_base_url(base_url)
     Rails.cache.write(backend_cache_key, base_url, expires_in: BACKEND_CACHE_TTL)
   rescue StandardError => e
-    Rails.logger.warn("[WaflowWhatsappConnections] failed to write backend cache for account=#{@account.id}: #{e.message}")
+    Rails.logger.warn("[WaflowConversationMigrations] failed to write backend cache for account=#{@account.id}: #{e.message}")
   end
 
   def clear_cached_backend_base_url
     Rails.cache.delete(backend_cache_key)
   rescue StandardError => e
-    Rails.logger.warn("[WaflowWhatsappConnections] failed to clear backend cache for account=#{@account.id}: #{e.message}")
+    Rails.logger.warn("[WaflowConversationMigrations] failed to clear backend cache for account=#{@account.id}: #{e.message}")
   end
 
   def reset_backend_resolution!

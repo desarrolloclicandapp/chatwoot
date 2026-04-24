@@ -148,6 +148,10 @@ Rails.application.routes.draw do
               resource :waflow_agent, only: [:create] do
                 post :reset_memory, on: :collection
               end
+              resource :waflow_migration, only: [] do
+                get :options
+                post :migrate
+              end
               resources :assignments, only: [:create]
               resources :labels, only: [:create, :index]
               resource :participants, only: [:show, :create, :update, :destroy]

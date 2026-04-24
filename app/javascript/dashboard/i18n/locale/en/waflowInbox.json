@@ -1,0 +1,69 @@
+{
+  "WAFLOW_MIGRATION": {
+    "ACTION_LABEL": "Move channel",
+    "TITLE": "Move conversation",
+    "DESCRIPTION": "Choose another WhatsApp channel for this contact. Existing messages stay in the original conversation.",
+    "LOADING": "Loading available channels...",
+    "CURRENT_CHANNEL": "Current channel",
+    "CURRENT_CHANNEL_UNKNOWN": "Current channel not detected",
+    "SELECT_TARGET": "Destination channel",
+    "NO_PHONE": "No phone number linked",
+    "NO_CHANNELS": "There are no other channels available for this account.",
+    "RESOLVE_SOURCE": "Resolve the current conversation after moving",
+    "RESULT_TITLE": "Migration completed",
+    "CREATED_DESTINATION": "A new destination conversation was created.",
+    "REUSED_DESTINATION": "An existing destination conversation was reused.",
+    "CLOSE": "Close",
+    "OPEN_TARGET": "Open destination",
+    "CONFIRM": "Move conversation",
+    "SUCCESS_TOAST": "Conversation moved successfully.",
+    "ERRORS": {
+      "GENERIC": "The conversation could not be moved."
+    }
+  },
+  "WAFLOW_INBOX_GUIDE": {
+    "TITLE": "Welcome to Waflow Inbox",
+    "SUBTITLE": "This quick guide shows the exact flow: connect a phone, receive conversations, reply, and move channels when needed.",
+    "STEP_COUNTER": "Step {current} of {total}",
+    "SKIP": "Skip guide",
+    "BACK": "Back",
+    "NEXT": "Next",
+    "FINISH": "Finish",
+    "OPEN_CONNECTION": "Open WhatsApp Connection",
+    "REPLAY": "View guide",
+    "CARDS": {
+      "WHATSAPP_LABEL": "WhatsApp",
+      "WHATSAPP_VALUE": "QR or Meta",
+      "INBOX_LABEL": "Inbox",
+      "INBOX_VALUE": "My Inbox / Conversations",
+      "CHANNEL_LABEL": "Channel",
+      "CHANNEL_VALUE": "Native migration"
+    },
+    "STEPS": {
+      "WELCOME": {
+        "TITLE": "Start here",
+        "BODY": "Waflow Inbox is where your team answers customer conversations. Before messages arrive, at least one WhatsApp line must be connected."
+      },
+      "CONNECTION_MENU": {
+        "TITLE": "Find WhatsApp Connection",
+        "BODY": "Use the left sidebar item named WhatsApp Connection. That screen shows every enabled number and its current state."
+      },
+      "CONNECT_PHONE": {
+        "TITLE": "Connect a phone",
+        "BODY": "If the channel uses QR, click Link by QR and scan it from WhatsApp Linked Devices. If it uses Meta, the screen shows it as a Meta channel."
+      },
+      "VERIFY_STATUS": {
+        "TITLE": "Check the state",
+        "BODY": "Connected means the inbox can send and receive. Disconnected or paused means the number needs attention before conversations work."
+      },
+      "CONVERSATIONS": {
+        "TITLE": "Handle conversations",
+        "BODY": "New messages appear in My Inbox or Conversations. Open a conversation, write your reply, and resolve it when the case is done."
+      },
+      "MIGRATION": {
+        "TITLE": "Move a conversation",
+        "BODY": "Inside a conversation, open the actions menu and choose Move channel. Select the destination number when the customer must continue from another channel."
+      }
+    }
+  }
+}

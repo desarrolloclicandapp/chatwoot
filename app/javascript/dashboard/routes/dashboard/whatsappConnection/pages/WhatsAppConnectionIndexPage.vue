@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import { emitter } from 'shared/helpers/mitt';
 import Button from 'dashboard/components-next/button/Button.vue';
 import whatsappConnectionsAPI from 'dashboard/api/whatsappConnections';
 
@@ -208,6 +209,10 @@ const handleDisconnect = slotId => {
   runAction('disconnect', slotId, 'WHATSAPP_CONNECTION.SUCCESS.DISCONNECT');
 };
 
+const openGuide = () => {
+  emitter.emit('waflow-inbox-guide:open');
+};
+
 watch(selectedSlotId, async slotId => {
   selectedSlotDetails.value = null;
 
@@ -242,19 +247,29 @@ onBeforeUnmount(() => {
           {{ t('WHATSAPP_CONNECTION.LOCATION') }}: {{ locationName }}
         </span>
       </div>
-      <Button
-        icon="i-lucide-refresh-cw"
-        outline
-        slate
-        :label="t('WHATSAPP_CONNECTION.ACTIONS.REFRESH')"
-        :is-loading="isLoading"
-        @click="loadConnections()"
-      />
+      <div class="flex flex-wrap justify-end gap-2">
+        <Button
+          icon="i-lucide-refresh-cw"
+          outline
+          slate
+          :label="t('WHATSAPP_CONNECTION.ACTIONS.REFRESH')"
+          :is-loading="isLoading"
+          @click="loadConnections()"
+        />
+        <Button
+          icon="i-lucide-compass"
+          outline
+          slate
+          :label="t('WAFLOW_INBOX_GUIDE.REPLAY')"
+          @click="openGuide"
+        />
+      </div>
     </section>
 
     <div
       v-if="loadErrorMessage && !isLoading"
-      class="flex items-center justify-center min-h-[16rem] rounded-2xl border border-n-ruby-8/40 bg-n-ruby-9/5 px-6 text-center text-sm text-n-ruby-11"
+      class="flex items-center justify-center min-h-[16rem] rounded-2xl border
+        border-n-ruby-8/40 bg-n-ruby-9/5 px-6 text-center text-sm text-n-ruby-11"
     >
       {{ loadErrorMessage }}
     </div>

@@ -4,6 +4,7 @@ import { defineAsyncComponent, ref, computed } from 'vue';
 import NextSidebar from 'next/sidebar/Sidebar.vue';
 import WootKeyShortcutModal from 'dashboard/components/widgets/modal/WootKeyShortcutModal.vue';
 import AddAccountModal from 'dashboard/components/app/AddAccountModal.vue';
+import WaflowInboxGuideDialog from 'dashboard/components/widgets/WaflowInboxGuideDialog.vue';
 import UpgradePage from 'dashboard/routes/dashboard/upgrade/UpgradePage.vue';
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
@@ -32,6 +33,7 @@ export default {
     CommandBar,
     WootKeyShortcutModal,
     AddAccountModal,
+    WaflowInboxGuideDialog,
     UpgradePage,
     CopilotLauncher,
     CopilotContainer,
@@ -163,6 +165,7 @@ export default {
         />
         <CopilotContainer />
         <FloatingCallWidget v-if="hasActiveCall || hasIncomingCall" />
+        <WaflowInboxGuideDialog />
       </template>
       <AddAccountModal
         :show="showCreateAccountModal"

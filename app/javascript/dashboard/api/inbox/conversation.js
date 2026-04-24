@@ -151,6 +151,17 @@ class ConversationApi extends ApiClient {
     });
   }
 
+  fetchWaflowMigrationOptions(conversationId) {
+    return axios.get(`${this.url}/${conversationId}/waflow_migration/options`);
+  }
+
+  migrateWaflowConversation({ conversationId, targetSlotId, resolveSource }) {
+    return axios.post(`${this.url}/${conversationId}/waflow_migration/migrate`, {
+      targetSlotId,
+      resolveSource,
+    });
+  }
+
   delete(conversationId) {
     return axios.delete(`${this.url}/${conversationId}`);
   }

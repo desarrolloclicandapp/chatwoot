@@ -37,8 +37,13 @@ export default {
   computed: {
     ...mapGetters({
       currentChat: 'getSelectedChat',
-      dashboardApps: 'dashboardApps/getRecords',
+      rawDashboardApps: 'dashboardApps/getRecords',
     }),
+    dashboardApps() {
+      return (this.rawDashboardApps || []).filter(
+        dashboardApp => !this.isWaflowNativeDashboardApp(dashboardApp)
+      );
+    },
     dashboardAppTabs() {
       return [
         {
@@ -84,6 +89,28 @@ export default {
     },
     onDashboardAppTabChange(index) {
       this.activeIndex = index;
+    },
+    isWaflowNativeDashboardApp(dashboardApp) {
+      const title = String(dashboardApp?.title || '').trim().toLowerCase();
+      if (
+        [
+          'conversation hub',
+          'waflow inbox hub',
+          'move channel',
+          'connection status',
+        ].includes(title)
+      ) {
+        return true;
+      }
+
+      return (dashboardApp?.content || []).some(item => {
+        const url = String(item?.url || '').toLowerCase();
+        return [
+          '/chatwoot/dashboard/overview',
+          '/chatwoot/dashboard/migrate-channel',
+          '/chatwoot/dashboard/qr',
+        ].some(path => url.includes(path));
+      });
     },
   },
 };

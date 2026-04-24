@@ -1,11 +1,12 @@
 <script setup>
-import { computed, onUnmounted } from 'vue';
+import { computed, onUnmounted, ref } from 'vue';
 import { useToggle } from '@vueuse/core';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { emitter } from 'shared/helpers/mitt';
 import EmailTranscriptModal from './EmailTranscriptModal.vue';
+import WaflowMigrationDialog from './WaflowMigrationDialog.vue';
 import ResolveAction from '../../buttons/ResolveAction.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
@@ -22,6 +23,7 @@ const { t } = useI18n();
 
 const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
 const [showActionsDropdown, toggleDropdown] = useToggle(false);
+const waflowMigrationDialogRef = ref(null);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 
@@ -45,6 +47,13 @@ const actionMenuItems = computed(() => {
   }
 
   items.push({
+    icon: 'i-lucide-route',
+    label: t('WAFLOW_MIGRATION.ACTION_LABEL'),
+    action: 'waflow_migration',
+    value: 'waflow_migration',
+  });
+
+  items.push({
     icon: 'i-lucide-share',
     label: t('CONTACT_PANEL.SEND_TRANSCRIPT'),
     action: 'send_transcript',
@@ -65,6 +74,8 @@ const handleActionClick = ({ action }) => {
     useAlert(t('CONTACT_PANEL.UNMUTED_SUCCESS'));
   } else if (action === 'send_transcript') {
     toggleEmailModal();
+  } else if (action === 'waflow_migration') {
+    waflowMigrationDialogRef.value?.open();
   }
 };
 
@@ -121,6 +132,11 @@ onUnmounted(() => {
       :show="showEmailActionsModal"
       :current-chat="currentChat"
       @cancel="toggleEmailModal"
+    />
+    <WaflowMigrationDialog
+      v-if="currentChat.id"
+      ref="waflowMigrationDialogRef"
+      :conversation-id="currentChat.id"
     />
   </div>
 </template>

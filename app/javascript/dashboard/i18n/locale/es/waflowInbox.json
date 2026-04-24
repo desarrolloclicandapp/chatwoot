@@ -1,0 +1,69 @@
+{
+  "WAFLOW_MIGRATION": {
+    "ACTION_LABEL": "Migrar canal",
+    "TITLE": "Migrar conversación",
+    "DESCRIPTION": "Elige otro canal de WhatsApp para este contacto. Los mensajes existentes quedan en la conversación original.",
+    "LOADING": "Cargando canales disponibles...",
+    "CURRENT_CHANNEL": "Canal actual",
+    "CURRENT_CHANNEL_UNKNOWN": "No se detectó el canal actual",
+    "SELECT_TARGET": "Canal destino",
+    "NO_PHONE": "Sin número vinculado",
+    "NO_CHANNELS": "No hay otros canales disponibles para esta cuenta.",
+    "RESOLVE_SOURCE": "Resolver la conversación actual después de migrar",
+    "RESULT_TITLE": "Migración completada",
+    "CREATED_DESTINATION": "Se creó una nueva conversación destino.",
+    "REUSED_DESTINATION": "Se reutilizó una conversación destino existente.",
+    "CLOSE": "Cerrar",
+    "OPEN_TARGET": "Abrir destino",
+    "CONFIRM": "Migrar conversación",
+    "SUCCESS_TOAST": "Conversación migrada correctamente.",
+    "ERRORS": {
+      "GENERIC": "No se pudo migrar la conversación."
+    }
+  },
+  "WAFLOW_INBOX_GUIDE": {
+    "TITLE": "Bienvenido a Waflow Inbox",
+    "SUBTITLE": "Esta guía rápida muestra el flujo exacto: conectar un teléfono, recibir conversaciones, responder y migrar canales cuando sea necesario.",
+    "STEP_COUNTER": "Paso {current} de {total}",
+    "SKIP": "Omitir guía",
+    "BACK": "Atrás",
+    "NEXT": "Siguiente",
+    "FINISH": "Finalizar",
+    "OPEN_CONNECTION": "Abrir Conexión WhatsApp",
+    "REPLAY": "Ver guía",
+    "CARDS": {
+      "WHATSAPP_LABEL": "WhatsApp",
+      "WHATSAPP_VALUE": "QR o Meta",
+      "INBOX_LABEL": "Inbox",
+      "INBOX_VALUE": "My Inbox / Conversaciones",
+      "CHANNEL_LABEL": "Canal",
+      "CHANNEL_VALUE": "Migración nativa"
+    },
+    "STEPS": {
+      "WELCOME": {
+        "TITLE": "Empieza aquí",
+        "BODY": "Waflow Inbox es donde tu equipo responde conversaciones de clientes. Antes de recibir mensajes, debes tener al menos una línea de WhatsApp conectada."
+      },
+      "CONNECTION_MENU": {
+        "TITLE": "Encuentra Conexión WhatsApp",
+        "BODY": "Usa la opción Conexión WhatsApp del menú izquierdo. Esa pantalla muestra todos los números habilitados y su estado actual."
+      },
+      "CONNECT_PHONE": {
+        "TITLE": "Conecta un teléfono",
+        "BODY": "Si el canal usa QR, haz clic en Vincular por QR y escanéalo desde Dispositivos vinculados en WhatsApp. Si usa Meta, la pantalla lo muestra como canal Meta."
+      },
+      "VERIFY_STATUS": {
+        "TITLE": "Verifica el estado",
+        "BODY": "Conectado significa que el inbox puede enviar y recibir. Desconectado o pausado significa que el número necesita atención antes de funcionar."
+      },
+      "CONVERSATIONS": {
+        "TITLE": "Gestiona conversaciones",
+        "BODY": "Los mensajes nuevos aparecen en My Inbox o Conversaciones. Abre una conversación, responde y resuélvela cuando el caso termine."
+      },
+      "MIGRATION": {
+        "TITLE": "Migra una conversación",
+        "BODY": "Dentro de una conversación, abre el menú de acciones y elige Migrar canal. Selecciona el número destino cuando el cliente deba continuar desde otro canal."
+      }
+    }
+  }
+}
