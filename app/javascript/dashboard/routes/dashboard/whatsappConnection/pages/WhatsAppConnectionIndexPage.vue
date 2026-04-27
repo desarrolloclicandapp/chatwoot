@@ -56,6 +56,16 @@ const qrImage = computed(() => activeSlot.value?.qrCode || null);
 const isQrLoading = computed(
   () => !!activeSlot.value && qrLoadingSlotId.value === activeSlot.value.slotId
 );
+const isWaitingForQr = computed(() => {
+  if (!activeSlot.value || qrImage.value) return false;
+  if (activeSlot.value.connectionMode === 'official_api') return false;
+  return (
+    isQrLoading.value ||
+    activeSlot.value.connecting ||
+    actionKey.value === `start:${activeSlot.value.slotId}` ||
+    actionKey.value === `reconnect:${activeSlot.value.slotId}`
+  );
+});
 
 const formatTimestamp = value => {
   if (!value) return '-';
@@ -184,12 +194,14 @@ const stopPolling = () => {
   pollTimer.value = null;
 };
 
-const runAction = async (method, slotId, successKey) => {
+const runAction = async (method, slotId, successKey, options = {}) => {
   actionKey.value = `${method}:${slotId}`;
 
   try {
     await whatsappConnectionsAPI[method](slotId);
-    useAlert(t(successKey));
+    if (!options.hideSuccessAlert) {
+      useAlert(t(successKey));
+    }
     await loadConnections({ silent: true });
 
     if (selectedSlotId.value === slotId && canPollQr.value) {
@@ -205,10 +217,14 @@ const runAction = async (method, slotId, successKey) => {
 };
 
 const handleStart = slotId =>
-  runAction('start', slotId, 'WHATSAPP_CONNECTION.SUCCESS.START');
+  runAction('start', slotId, 'WHATSAPP_CONNECTION.SUCCESS.START', {
+    hideSuccessAlert: true,
+  });
 
 const handleReconnect = slotId =>
-  runAction('reconnect', slotId, 'WHATSAPP_CONNECTION.SUCCESS.RECONNECT');
+  runAction('reconnect', slotId, 'WHATSAPP_CONNECTION.SUCCESS.RECONNECT', {
+    hideSuccessAlert: true,
+  });
 
 const handlePause = slotId => {
   confirmDialog.value = {
@@ -518,7 +534,7 @@ onBeforeUnmount(() => {
                 xs
                 outline
                 slate
-                :disabled="isQrLoading"
+                :disabled="isWaitingForQr"
                 :is-loading="isQrLoading"
                 :label="t('WHATSAPP_CONNECTION.ACTIONS.REFRESH_QR')"
                 @click="loadQr(activeSlot.slotId)"
@@ -526,7 +542,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div
-              v-if="isQrLoading"
+              v-if="isWaitingForQr"
               class="flex flex-col items-center justify-center min-h-[18rem] mt-6 rounded-2xl bg-n-alpha-1 px-6 text-center text-sm text-n-slate-11"
             >
               <span class="i-lucide-loader-circle mb-3 size-6 animate-spin text-n-brand" />
