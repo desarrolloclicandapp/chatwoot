@@ -24,7 +24,7 @@ export default {
   data() {
     return {
       selectedWaflowAgentId: '',
-      selectedWaflowAgentMode: 'suggest',
+      selectedWaflowAgentMode: 'reply',
       isUpdatingWaflowAgentConfig: false,
     };
   },
@@ -56,15 +56,15 @@ export default {
       return [
         {
           label: this.isSpanish
-            ? 'Sugerir respuesta'
-            : 'Suggest reply',
-          value: 'suggest',
-        },
-        {
-          label: this.isSpanish
             ? 'Responder automaticamente'
             : 'Reply automatically',
           value: 'reply',
+        },
+        {
+          label: this.isSpanish
+            ? 'Sugerir respuesta'
+            : 'Suggest reply',
+          value: 'suggest',
         },
       ];
     },
@@ -133,7 +133,7 @@ export default {
         this.inbox.additional_attributes?.waflow_default_agent_id?.toString() ||
         '';
       this.selectedWaflowAgentMode =
-        this.inbox.additional_attributes?.waflow_agent_mode || 'suggest';
+        this.inbox.additional_attributes?.waflow_agent_mode || 'reply';
     },
     async updateWaflowAgentConfig() {
       if (!this.canSave) return;
@@ -149,7 +149,7 @@ export default {
               waflow_default_agent_id: this.selectedWaflowAgentId
                 ? Number(this.selectedWaflowAgentId)
                 : null,
-              waflow_agent_mode: this.selectedWaflowAgentMode || 'suggest',
+              waflow_agent_mode: this.selectedWaflowAgentMode || 'reply',
             },
           },
         };

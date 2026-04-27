@@ -17,8 +17,21 @@ class WaflowAgentListener < BaseListener
     inbox = message.inbox
     return false unless inbox&.api?
 
-    attributes = inbox.additional_attributes || {}
+    attributes = inbox_additional_attributes(inbox)
     attributes['waflow_default_agent_id'].to_i.positive? &&
-      attributes['waflow_agent_mode'].to_s == 'reply'
+      auto_reply_mode?(attributes['waflow_agent_mode'])
+  end
+
+  def inbox_additional_attributes(inbox)
+    return {} unless inbox
+
+    attributes = inbox.additional_attributes if inbox.respond_to?(:additional_attributes)
+    return attributes if attributes.present?
+
+    inbox.channel&.additional_attributes || {}
+  end
+
+  def auto_reply_mode?(mode)
+    mode.blank? || mode.to_s == 'reply'
   end
 end

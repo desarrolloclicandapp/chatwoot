@@ -1,0 +1,69 @@
+require 'rails_helper'
+
+RSpec.describe WaflowAgents::AutoReplyJob do
+  let(:account) { create(:account) }
+  let(:channel) { create(:channel_api, account: account) }
+  let(:inbox) { channel.inbox }
+  let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+  let(:message) do
+    create(
+      :message,
+      message_type: 'incoming',
+      account: account,
+      inbox: inbox,
+      conversation: conversation
+    )
+  end
+  let(:execute_service) { instance_double(WaflowAgents::ExecuteService) }
+
+  before do
+    channel.update!(
+      additional_attributes: {
+        'waflow_default_agent_id' => 42,
+        'waflow_agent_mode' => 'reply'
+      }
+    )
+    allow(WaflowAgents::ExecuteService).to receive(:new).and_return(execute_service)
+    allow(execute_service).to receive(:perform)
+  end
+
+  it 'executes the configured agent in reply mode' do
+    described_class.new.perform(message.id)
+
+    expect(WaflowAgents::ExecuteService).to have_received(:new).with(
+      account: message.account,
+      conversation: message.conversation,
+      rule: nil
+    )
+    expect(execute_service).to have_received(:perform).with(
+      agent_id: 42,
+      mode: 'reply',
+      trigger_message: message
+    )
+  end
+
+  it 'defaults a missing mode to auto reply' do
+    channel.update!(additional_attributes: { 'waflow_default_agent_id' => 42 })
+
+    described_class.new.perform(message.id)
+
+    expect(execute_service).to have_received(:perform).with(
+      agent_id: 42,
+      mode: 'reply',
+      trigger_message: message
+    )
+  end
+
+  it 'skips execution when the inbox is explicitly in suggest mode' do
+    channel.update!(
+      additional_attributes: {
+        'waflow_default_agent_id' => 42,
+        'waflow_agent_mode' => 'suggest'
+      }
+    )
+
+    described_class.new.perform(message.id)
+
+    expect(WaflowAgents::ExecuteService).not_to have_received(:new)
+  end
+end

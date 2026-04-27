@@ -214,7 +214,7 @@ export default {
       return Number(this.waflowAgentConfig.waflow_default_agent_id || 0);
     },
     waflowAgentMode() {
-      return this.waflowAgentConfig.waflow_agent_mode || 'suggest';
+      return this.waflowAgentConfig.waflow_agent_mode || 'reply';
     },
     canUseWaflowAgent() {
       return (

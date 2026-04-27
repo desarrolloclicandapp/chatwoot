@@ -7,7 +7,7 @@ class WaflowAgents::AutoReplyJob < ApplicationJob
     return unless eligible_message?(message)
 
     inbox = message.inbox
-    attributes = inbox.additional_attributes || {}
+    attributes = inbox_additional_attributes(inbox)
     agent_id = attributes['waflow_default_agent_id'].to_i
     return if agent_id <= 0
 
@@ -35,7 +35,20 @@ class WaflowAgents::AutoReplyJob < ApplicationJob
     inbox = message.inbox
     return false unless inbox&.api?
 
-    attributes = inbox.additional_attributes || {}
-    attributes['waflow_agent_mode'].to_s == 'reply'
+    attributes = inbox_additional_attributes(inbox)
+    auto_reply_mode?(attributes['waflow_agent_mode'])
+  end
+
+  def inbox_additional_attributes(inbox)
+    return {} unless inbox
+
+    attributes = inbox.additional_attributes if inbox.respond_to?(:additional_attributes)
+    return attributes if attributes.present?
+
+    inbox.channel&.additional_attributes || {}
+  end
+
+  def auto_reply_mode?(mode)
+    mode.blank? || mode.to_s == 'reply'
   end
 end
