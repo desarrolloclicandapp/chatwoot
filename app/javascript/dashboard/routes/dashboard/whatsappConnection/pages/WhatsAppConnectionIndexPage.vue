@@ -16,12 +16,14 @@ const { isAdmin } = useAdmin();
 const isLoading = ref(false);
 const isPolling = ref(false);
 const actionKey = ref('');
+const qrLoadingSlotId = ref(null);
 const loadErrorMessage = ref('');
 const locationName = ref('');
 const slots = ref([]);
 const selectedSlotId = ref(null);
 const selectedSlotDetails = ref(null);
 const pollTimer = ref(null);
+const confirmDialog = ref(null);
 
 const selectedSlot = computed(() => {
   return slots.value.find(slot => slot.slotId === selectedSlotId.value) || null;
@@ -51,6 +53,9 @@ const canPollQr = computed(() => {
 });
 
 const qrImage = computed(() => activeSlot.value?.qrCode || null);
+const isQrLoading = computed(
+  () => !!activeSlot.value && qrLoadingSlotId.value === activeSlot.value.slotId
+);
 
 const formatTimestamp = value => {
   if (!value) return '-';
@@ -122,6 +127,8 @@ const loadConnections = async ({ silent = false } = {}) => {
 const loadQr = async (slotId, { silent = false } = {}) => {
   if (!slotId) return;
 
+  if (!silent) qrLoadingSlotId.value = slotId;
+
   try {
     const response = await whatsappConnectionsAPI.qr(slotId);
     const payload = unwrapQrPayload(response);
@@ -141,6 +148,10 @@ const loadQr = async (slotId, { silent = false } = {}) => {
 
     if (!silent) {
       useAlert(buildErrorMessage(error));
+    }
+  } finally {
+    if (!silent && qrLoadingSlotId.value === slotId) {
+      qrLoadingSlotId.value = null;
     }
   }
 };
@@ -200,13 +211,39 @@ const handleReconnect = slotId =>
   runAction('reconnect', slotId, 'WHATSAPP_CONNECTION.SUCCESS.RECONNECT');
 
 const handlePause = slotId => {
-  if (!window.confirm(t('WHATSAPP_CONNECTION.CONFIRM.PAUSE'))) return;
-  runAction('pause', slotId, 'WHATSAPP_CONNECTION.SUCCESS.PAUSE');
+  confirmDialog.value = {
+    method: 'pause',
+    slotId,
+    title: t('WHATSAPP_CONNECTION.CONFIRM.PAUSE_TITLE'),
+    message: t('WHATSAPP_CONNECTION.CONFIRM.PAUSE'),
+    confirmLabel: t('WHATSAPP_CONNECTION.CONFIRM.PAUSE_ACTION'),
+    successKey: 'WHATSAPP_CONNECTION.SUCCESS.PAUSE',
+    variant: 'amber',
+  };
 };
 
 const handleDisconnect = slotId => {
-  if (!window.confirm(t('WHATSAPP_CONNECTION.CONFIRM.DISCONNECT'))) return;
-  runAction('disconnect', slotId, 'WHATSAPP_CONNECTION.SUCCESS.DISCONNECT');
+  confirmDialog.value = {
+    method: 'disconnect',
+    slotId,
+    title: t('WHATSAPP_CONNECTION.CONFIRM.DISCONNECT_TITLE'),
+    message: t('WHATSAPP_CONNECTION.CONFIRM.DISCONNECT'),
+    confirmLabel: t('WHATSAPP_CONNECTION.CONFIRM.DISCONNECT_ACTION'),
+    successKey: 'WHATSAPP_CONNECTION.SUCCESS.DISCONNECT',
+    variant: 'ruby',
+  };
+};
+
+const closeConfirmDialog = () => {
+  if (actionKey.value) return;
+  confirmDialog.value = null;
+};
+
+const confirmAction = async () => {
+  if (!confirmDialog.value) return;
+  const dialog = confirmDialog.value;
+  await runAction(dialog.method, dialog.slotId, dialog.successKey);
+  confirmDialog.value = null;
 };
 
 const openGuide = () => {
@@ -351,7 +388,10 @@ onBeforeUnmount(() => {
               v-if="slot.canGenerateQr"
               xs
               :disabled="!isAdmin"
-              :is-loading="actionKey === `start:${slot.slotId}`"
+              :is-loading="
+                actionKey === `start:${slot.slotId}` ||
+                qrLoadingSlotId === slot.slotId
+              "
               :label="t('WHATSAPP_CONNECTION.ACTIONS.START')"
               @click.stop="handleStart(slot.slotId)"
             />
@@ -360,7 +400,10 @@ onBeforeUnmount(() => {
               xs
               outline
               :disabled="!isAdmin"
-              :is-loading="actionKey === `reconnect:${slot.slotId}`"
+              :is-loading="
+                actionKey === `reconnect:${slot.slotId}` ||
+                qrLoadingSlotId === slot.slotId
+              "
               :label="t('WHATSAPP_CONNECTION.ACTIONS.RECONNECT')"
               @click.stop="handleReconnect(slot.slotId)"
             />
@@ -475,13 +518,22 @@ onBeforeUnmount(() => {
                 xs
                 outline
                 slate
+                :disabled="isQrLoading"
+                :is-loading="isQrLoading"
                 :label="t('WHATSAPP_CONNECTION.ACTIONS.REFRESH_QR')"
                 @click="loadQr(activeSlot.slotId)"
               />
             </div>
 
             <div
-              v-if="qrImage"
+              v-if="isQrLoading"
+              class="flex flex-col items-center justify-center min-h-[18rem] mt-6 rounded-2xl bg-n-alpha-1 px-6 text-center text-sm text-n-slate-11"
+            >
+              <span class="i-lucide-loader-circle mb-3 size-6 animate-spin text-n-brand" />
+              {{ t('WHATSAPP_CONNECTION.QR_LOADING') }}
+            </div>
+            <div
+              v-else-if="qrImage"
               class="flex items-center justify-center mt-6"
             >
               <img
@@ -502,6 +554,50 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </template>
+      </section>
+    </div>
+
+    <div
+      v-if="confirmDialog"
+      class="fixed inset-0 z-[9999] flex items-center justify-center bg-n-slate-1/70 px-4 backdrop-blur-sm"
+      @click.self="closeConfirmDialog"
+    >
+      <section class="w-full max-w-md rounded-2xl border border-n-weak bg-n-surface-1 p-5 shadow-xl">
+        <div class="flex items-start gap-3">
+          <span
+            class="mt-1 size-5"
+            :class="
+              confirmDialog.variant === 'ruby'
+                ? 'i-lucide-circle-alert text-n-ruby-10'
+                : 'i-lucide-circle-pause text-n-amber-10'
+            "
+          />
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-n-slate-12">
+              {{ confirmDialog.title }}
+            </h3>
+            <p class="mt-2 text-sm leading-6 text-n-slate-11">
+              {{ confirmDialog.message }}
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <Button
+            outline
+            slate
+            :disabled="!!actionKey"
+            :label="t('WHATSAPP_CONNECTION.CONFIRM.CANCEL')"
+            @click="closeConfirmDialog"
+          />
+          <Button
+            :ruby="confirmDialog.variant === 'ruby'"
+            :amber="confirmDialog.variant === 'amber'"
+            :is-loading="actionKey === `${confirmDialog.method}:${confirmDialog.slotId}`"
+            :label="confirmDialog.confirmLabel"
+            @click="confirmAction"
+          />
+        </div>
       </section>
     </div>
   </div>

@@ -9,6 +9,7 @@
     "MODE": "Modo de conexión",
     "QR_TITLE": "Conexión por QR",
     "QR_DESCRIPTION": "Genera o refresca el código QR de los canales manuales desde esta pantalla.",
+    "QR_LOADING": "Generando código QR. Esto puede tardar unos segundos...",
     "QR_EMPTY": "Todavía no hay un QR disponible. Inicia o reconecta la línea para generar un código nuevo.",
     "QR_UPDATED_AT": "QR actualizado",
     "QR_ALT": "Código QR de WhatsApp",
@@ -38,8 +39,13 @@
       "DISCONNECT": "La línea fue desconectada."
     },
     "CONFIRM": {
+      "CANCEL": "Cancelar",
+      "PAUSE_TITLE": "Pausar línea de WhatsApp",
       "PAUSE": "¿Pausar esta línea de WhatsApp?",
-      "DISCONNECT": "¿Desconectar esta línea de WhatsApp?"
+      "PAUSE_ACTION": "Pausar",
+      "DISCONNECT_TITLE": "Desconectar línea de WhatsApp",
+      "DISCONNECT": "¿Desconectar esta línea de WhatsApp?",
+      "DISCONNECT_ACTION": "Desconectar"
     },
     "ERRORS": {
       "GENERIC": "No se pudo completar la operación de conexión de WhatsApp."

@@ -14,7 +14,7 @@ module SwitchLocale
     locale ||= locale_from_custom_domain
 
     # if locale is not set in account, let's use DEFAULT_LOCALE env variable
-    locale ||= ENV.fetch('DEFAULT_LOCALE', nil)
+    locale ||= ENV.fetch('DEFAULT_LOCALE', 'es')
 
     set_locale(locale, &)
   end
@@ -25,6 +25,7 @@ module SwitchLocale
 
     # Fallback to the account's locale if the user's locale is not set
     locale ||= locale_from_account(@current_account)
+    locale ||= ENV.fetch('DEFAULT_LOCALE', 'es')
 
     set_locale(locale, &)
   end

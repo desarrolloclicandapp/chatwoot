@@ -79,10 +79,7 @@ export default {
   mounted() {
     this.initializeColorTheme();
     this.listenToThemeChanges();
-    // If user locale is set, use it; otherwise use account locale
-    this.setLocale(
-      this.uiSettings?.locale || window.chatwootConfig.selectedLocale
-    );
+    this.setLocale(this.resolveLocale(window.chatwootConfig.selectedLocale));
   },
   unmounted() {
     if (this.reconnectService) {
@@ -100,6 +97,13 @@ export default {
     setLocale(locale) {
       this.$root.$i18n.locale = locale;
     },
+    resolveLocale(accountLocale) {
+      if (this.uiSettings?.locale) return this.uiSettings.locale;
+      if (accountLocale && accountLocale !== 'en') return accountLocale;
+      const selectedLocale = window.chatwootConfig.selectedLocale;
+      if (selectedLocale && selectedLocale !== 'en') return selectedLocale;
+      return 'es';
+    },
     async initializeAccount() {
       await this.$store.dispatch('accounts/get');
       this.$store.dispatch('setActiveAccount', {
@@ -108,8 +112,7 @@ export default {
       const { locale, latest_chatwoot_version: latestChatwootVersion } =
         this.getAccount(this.currentAccountId);
       const { pubsub_token: pubsubToken } = this.currentUser || {};
-      // If user locale is set, use it; otherwise use account locale
-      this.setLocale(this.uiSettings?.locale || locale);
+      this.setLocale(this.resolveLocale(locale));
       this.latestChatwootVersion = latestChatwootVersion;
       vueActionCable.init(this.store, pubsubToken);
       this.reconnectService = new ReconnectService(this.store, this.router);
