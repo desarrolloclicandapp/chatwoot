@@ -394,7 +394,7 @@ onBeforeUnmount(() => {
                     ? 'bg-n-teal-9/10 text-n-teal-11'
                     : slot.paused
                       ? 'bg-n-amber-9/10 text-n-slate-12'
-                      : slot.connecting
+                      : slot.connecting || slot.reconnecting
                         ? 'bg-n-blue-9/10 text-n-blue-11'
                         : 'bg-n-ruby-9/10 text-n-ruby-11'
                 "
@@ -502,7 +502,7 @@ onBeforeUnmount(() => {
                     ? 'bg-n-teal-9/10 text-n-teal-11'
                     : activeSlot.paused
                       ? 'bg-n-amber-9/10 text-n-slate-12'
-                      : activeSlot.connecting
+                      : activeSlot.connecting || activeSlot.reconnecting
                         ? 'bg-n-blue-9/10 text-n-blue-11'
                         : 'bg-n-ruby-9/10 text-n-ruby-11'
                 "
@@ -549,6 +549,8 @@ onBeforeUnmount(() => {
                   {{
                     activeSlot.connected
                       ? t('WHATSAPP_CONNECTION.QR_CONNECTED_TITLE')
+                      : activeSlot.reconnecting
+                      ? t('WHATSAPP_CONNECTION.QR_RECONNECTING_TITLE')
                       : t('WHATSAPP_CONNECTION.QR_TITLE')
                   }}
                 </h3>
@@ -556,6 +558,8 @@ onBeforeUnmount(() => {
                   {{
                     activeSlot.connected
                       ? t('WHATSAPP_CONNECTION.QR_CONNECTED_DESCRIPTION')
+                      : activeSlot.reconnecting
+                      ? t('WHATSAPP_CONNECTION.QR_RECONNECTING_DESCRIPTION')
                       : activeSlot.connectionMode === 'official_api'
                       ? t('WHATSAPP_CONNECTION.META_NOTE')
                       : t('WHATSAPP_CONNECTION.QR_DESCRIPTION')
@@ -563,7 +567,7 @@ onBeforeUnmount(() => {
                 </p>
               </div>
               <Button
-                v-if="activeSlot.connectionMode !== 'official_api' && !activeSlot.connected"
+                v-if="activeSlot.connectionMode !== 'official_api' && !activeSlot.connected && !activeSlot.reconnecting"
                 xs
                 outline
                 slate
@@ -595,6 +599,29 @@ onBeforeUnmount(() => {
               <div
                 v-if="activeSlotDisplayNumber"
                 class="mt-5 flex flex-col items-center gap-1 rounded-xl border border-n-teal-8 bg-n-surface-1 px-5 py-3 sm:flex-row sm:gap-3"
+              >
+                <span class="text-xs font-medium uppercase text-n-slate-10">
+                  {{ t('WHATSAPP_CONNECTION.CONNECTED_NUMBER_LABEL') }}
+                </span>
+                <span class="text-base font-semibold text-n-slate-12">
+                  {{ activeSlotDisplayNumber }}
+                </span>
+              </div>
+            </div>
+            <div
+              v-else-if="activeSlot.reconnecting"
+              class="flex flex-col items-center justify-center min-h-[18rem] mt-6 rounded-2xl bg-n-blue-9/10 px-6 text-center text-sm text-n-blue-11"
+            >
+              <span class="i-lucide-loader-circle mb-3 size-7 animate-spin text-n-blue-10" />
+              <p class="text-base font-semibold text-n-blue-12">
+                {{ t('WHATSAPP_CONNECTION.QR_RECONNECTING_TITLE') }}
+              </p>
+              <p class="mt-2 max-w-xl leading-6 text-n-blue-11">
+                {{ t('WHATSAPP_CONNECTION.QR_RECONNECTING_BODY') }}
+              </p>
+              <div
+                v-if="activeSlotDisplayNumber"
+                class="mt-5 flex flex-col items-center gap-1 rounded-xl border border-n-blue-8 bg-n-surface-1 px-5 py-3 sm:flex-row sm:gap-3"
               >
                 <span class="text-xs font-medium uppercase text-n-slate-10">
                   {{ t('WHATSAPP_CONNECTION.CONNECTED_NUMBER_LABEL') }}

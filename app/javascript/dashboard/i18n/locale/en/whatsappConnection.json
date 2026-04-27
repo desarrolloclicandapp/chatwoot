@@ -12,6 +12,9 @@
     "QR_CONNECTED_TITLE": "Device linked",
     "QR_CONNECTED_DESCRIPTION": "This number is already connected and ready to send and receive messages.",
     "QR_CONNECTED_BODY": "You do not need to generate another QR while the device remains connected. If you need to change the phone, disconnect it and link it again.",
+    "QR_RECONNECTING_TITLE": "Reconnecting device",
+    "QR_RECONNECTING_DESCRIPTION": "The number is still linked. We are restoring the connection automatically.",
+    "QR_RECONNECTING_BODY": "This can appear for a few seconds when WhatsApp restarts the session or the network has a brief drop. Do not generate another QR while the number remains associated.",
     "CONNECTED_NUMBER_LABEL": "Connected number",
     "QR_LOADING": "Generating QR code. This can take a few seconds...",
     "QR_EMPTY": "No QR is available yet. Start or reconnect the line to generate a fresh code.",
@@ -29,6 +32,7 @@
     "STATES": {
       "connected": "Connected",
       "connecting": "Connecting",
+      "reconnecting": "Reconnecting",
       "disconnected": "Disconnected",
       "paused": "Paused"
     },
