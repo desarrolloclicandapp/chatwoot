@@ -66,4 +66,29 @@ RSpec.describe WaflowAgents::ExecuteService do
 
     expect(result[:success]).to be true
   end
+
+  it 'normalizes backend tags to visible Chatwoot labels and ignores legacy encoded labels' do
+    success_response = instance_double(
+      HTTParty::Response,
+      success?: true,
+      code: 200,
+      body: {
+        success: true,
+        status: 'completed',
+        reply_text: '',
+        run_id: 'run_123',
+        add_tags: ['Cliente Activo', 'nuevo cliente', 'waflow_enc_yw5vdghlcibkz']
+      }.to_json
+    )
+    allow(HTTParty).to receive(:post).and_return(success_response)
+
+    result = described_class.new(account: account, conversation: conversation, rule: nil).perform(
+      agent_id: 42,
+      mode: 'reply',
+      trigger_message: message
+    )
+
+    expect(result[:add_tags]).to contain_exactly('cliente_activo', 'nuevo_cliente')
+    expect(conversation.reload.label_list).to contain_exactly('cliente_activo', 'nuevo_cliente')
+  end
 end

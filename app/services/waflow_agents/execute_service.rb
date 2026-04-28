@@ -1,6 +1,8 @@
 class WaflowAgents::ExecuteService < WaflowAgents::BaseService
   HISTORY_LIMIT = 20
   SUPPORTED_MODES = %w[suggest reply].freeze
+  CHATWOOT_LABEL_MAX_LENGTH = 100
+  WAFLOW_ENCODED_LABEL_PREFIX = 'waflow_enc_'
 
   def initialize(account:, conversation:, rule:)
     @account = account
@@ -231,9 +233,16 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
 
   def normalize_tags(tags)
     Array(tags).filter_map do |tag|
-      value = tag.to_s.strip
-      value.presence
+      normalize_chatwoot_label(tag)
     end.uniq.first(20)
+  end
+
+  def normalize_chatwoot_label(tag)
+    value = tag.to_s.strip
+    return if value.blank?
+    return if value.downcase.start_with?(WAFLOW_ENCODED_LABEL_PREFIX)
+
+    value.parameterize(separator: '_').presence&.first(CHATWOOT_LABEL_MAX_LENGTH)
   end
 
   def recent_message_history
