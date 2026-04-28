@@ -23,19 +23,19 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
       )
     end
 
-    response = HTTParty.post(
-      "#{waflow_base_url}/chatwoot/workflow-agents/execute",
-      headers: waflow_headers,
-      body: build_payload(
+    result = nil
+    waflow_base_urls.each do |base_url|
+      result = execute_on_backend(
+        base_url,
         agent_id: safe_agent_id,
         trigger_message: trigger_message,
-        extra_context: extra_context
-      ).to_json,
-      timeout: 45
-    )
+        extra_context: extra_context,
+        mode: normalized_mode
+      )
+      break unless result.nil?
+    end
 
-    body = parse_json_response(response)
-    result = normalize_result(response, body, safe_agent_id).merge(mode: normalized_mode)
+    result ||= failure_result('Waflow request failed', agent_id: safe_agent_id).merge(mode: normalized_mode)
     apply_result(result, mode: normalized_mode)
     result
   rescue StandardError => e
@@ -49,24 +49,12 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     return failure_result('agent_id is required') if safe_agent_id <= 0
     return failure_result('Waflow backend is not configured') unless waflow_configured?
 
-    response = HTTParty.post(
-      "#{waflow_base_url}/chatwoot/workflow-agents/reset-memory",
-      headers: waflow_headers,
-      body: build_reset_memory_payload(agent_id: safe_agent_id).to_json,
-      timeout: 30
-    )
+    waflow_base_urls.each do |base_url|
+      result = reset_memory_on_backend(base_url, agent_id: safe_agent_id)
+      return result unless result.nil?
+    end
 
-    body = parse_json_response(response)
-    return failure_result(body['error'].presence || body['error_message'].presence || 'Waflow reset memory failed', agent_id: safe_agent_id) unless response.success? && body['success'] == true
-
-    {
-      success: true,
-      status: 'completed',
-      agent_id: safe_agent_id,
-      deleted_count: body['deleted_count'].to_i,
-      memory_key: body['memory_key'].presence || default_memory_key,
-      error_message: nil
-    }
+    failure_result('Waflow reset memory failed', agent_id: safe_agent_id)
   rescue StandardError => e
     capture_exception(e, account: @account)
     Rails.logger.error("[WaflowAgents::ExecuteService] #{e.message}")
@@ -74,6 +62,81 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
   end
 
   private
+
+  def execute_on_backend(base_url, agent_id:, trigger_message:, extra_context:, mode:)
+    response = HTTParty.post(
+      "#{base_url}/chatwoot/workflow-agents/execute",
+      headers: waflow_headers,
+      body: build_payload(
+        agent_id: agent_id,
+        trigger_message: trigger_message,
+        extra_context: extra_context
+      ).to_json,
+      timeout: 45
+    )
+
+    body = parse_json_response(response)
+    error = body['error_message'].presence || body['error'].presence || 'Waflow request failed'
+    if retryable_backend_miss?(response, error)
+      Rails.logger.warn(
+        "[WaflowAgents::ExecuteService] retrying backend account=#{@account.id} " \
+        "conversation=#{@conversation.id} backend=#{base_url} status=#{response.code} error=#{error}"
+      )
+      return nil
+    end
+
+    Rails.logger.info(
+      "[WaflowAgents::ExecuteService] backend=#{base_url} account=#{@account.id} " \
+      "conversation=#{@conversation.id} status=#{response.code}"
+    )
+    normalize_result(response, body, agent_id).merge(mode: mode)
+  rescue StandardError => e
+    capture_exception(e, account: @account)
+    Rails.logger.error(
+      "[WaflowAgents::ExecuteService] backend=#{base_url} account=#{@account.id} " \
+      "conversation=#{@conversation.id} error=#{e.message}"
+    )
+    nil
+  end
+
+  def reset_memory_on_backend(base_url, agent_id:)
+    response = HTTParty.post(
+      "#{base_url}/chatwoot/workflow-agents/reset-memory",
+      headers: waflow_headers,
+      body: build_reset_memory_payload(agent_id: agent_id).to_json,
+      timeout: 30
+    )
+
+    body = parse_json_response(response)
+    error = body['error'].presence || body['error_message'].presence || 'Waflow reset memory failed'
+    if retryable_backend_miss?(response, error)
+      Rails.logger.warn(
+        "[WaflowAgents::ExecuteService] retrying reset backend account=#{@account.id} " \
+        "conversation=#{@conversation.id} backend=#{base_url} status=#{response.code} error=#{error}"
+      )
+      return nil
+    end
+
+    unless response.success? && body['success'] == true
+      return failure_result(error, agent_id: agent_id)
+    end
+
+    {
+      success: true,
+      status: 'completed',
+      agent_id: agent_id,
+      deleted_count: body['deleted_count'].to_i,
+      memory_key: body['memory_key'].presence || default_memory_key,
+      error_message: nil
+    }
+  rescue StandardError => e
+    capture_exception(e, account: @account)
+    Rails.logger.error(
+      "[WaflowAgents::ExecuteService] reset backend=#{base_url} account=#{@account.id} " \
+      "conversation=#{@conversation.id} error=#{e.message}"
+    )
+    nil
+  end
 
   def build_payload(agent_id:, trigger_message:, extra_context:)
     {

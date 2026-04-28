@@ -1,4 +1,7 @@
 class WaflowAgents::BaseService
+  ACCOUNT_NOT_LINKED_ERROR = 'No existe una subcuenta Waflow vinculada a este accountId'.freeze
+  BRIDGE_NOT_FOUND_ERROR = 'Waflow bridge endpoint not found'.freeze
+
   private
 
   def waflow_base_urls
@@ -49,6 +52,10 @@ class WaflowAgents::BaseService
     JSON.parse(response&.body.presence || '{}')
   rescue JSON::ParserError
     {}
+  end
+
+  def retryable_backend_miss?(response, error)
+    response.code.to_i == 404 && [ACCOUNT_NOT_LINKED_ERROR, BRIDGE_NOT_FOUND_ERROR].include?(error.to_s.strip)
   end
 
   def capture_exception(error, account:)

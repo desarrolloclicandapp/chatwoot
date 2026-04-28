@@ -41,6 +41,14 @@ RSpec.describe WaflowAgentListener do
       listener.message_created(event)
     end
 
+    it 'uses the channel Waflow configuration when inbox attributes are already present' do
+      inbox.update!(additional_attributes: { 'some_existing_key' => 'value' })
+
+      expect(WaflowAgents::AutoReplyJob).to receive(:perform_later).with(message.id).once
+
+      listener.message_created(event)
+    end
+
     it 'does not enqueue when the inbox is explicitly in suggest mode' do
       channel.update!(
         additional_attributes: {

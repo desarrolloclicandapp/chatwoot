@@ -27,6 +27,10 @@ RSpec.describe WaflowAgents::AutoReplyJob do
     allow(execute_service).to receive(:perform)
   end
 
+  it 'uses the high priority queue for customer-facing auto replies' do
+    expect(described_class.queue_name).to eq('high')
+  end
+
   it 'executes the configured agent in reply mode' do
     described_class.new.perform(message.id)
 
@@ -44,6 +48,18 @@ RSpec.describe WaflowAgents::AutoReplyJob do
 
   it 'defaults a missing mode to auto reply' do
     channel.update!(additional_attributes: { 'waflow_default_agent_id' => 42 })
+
+    described_class.new.perform(message.id)
+
+    expect(execute_service).to have_received(:perform).with(
+      agent_id: 42,
+      mode: 'reply',
+      trigger_message: message
+    )
+  end
+
+  it 'uses the channel Waflow configuration when inbox attributes are already present' do
+    inbox.update!(additional_attributes: { 'some_existing_key' => 'value' })
 
     described_class.new.perform(message.id)
 
