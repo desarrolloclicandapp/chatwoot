@@ -91,4 +91,31 @@ RSpec.describe WaflowAgents::ExecuteService do
     expect(result[:add_tags]).to contain_exactly('cliente_activo', 'nuevo_cliente')
     expect(conversation.reload.label_list).to contain_exactly('cliente_activo', 'nuevo_cliente')
   end
+
+  it 'suppresses repeated closing replies without resolving the conversation' do
+    success_response = instance_double(
+      HTTParty::Response,
+      success?: true,
+      code: 200,
+      body: {
+        success: true,
+        status: 'completed',
+        reply_text: 'De nada, quedo atento.',
+        run_id: 'run_123',
+        suppress_agent_reply: true,
+        suppress_reason: 'closing_thanks'
+      }.to_json
+    )
+    allow(HTTParty).to receive(:post).and_return(success_response)
+
+    expect do
+      described_class.new(account: account, conversation: conversation, rule: nil).perform(
+        agent_id: 42,
+        mode: 'reply',
+        trigger_message: message
+      )
+    end.not_to change { conversation.messages.outgoing.count }
+
+    expect(conversation.reload.status).to eq('open')
+  end
 end

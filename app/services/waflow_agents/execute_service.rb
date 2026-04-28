@@ -190,6 +190,8 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
       remove_tags: normalize_tags(body['remove_tags']),
       tags_added: normalize_tags(body['tags_added']),
       tags_removed: normalize_tags(body['tags_removed']),
+      suppress_agent_reply: body['suppress_agent_reply'] == true || body['resolve_conversation'] == true,
+      suppress_reason: body['suppress_reason'].presence || body['resolution_reason'].to_s,
       crm_actions_error: body['crm_actions_error'],
       error_message: body['error_message'],
       agent_id: agent_id
@@ -200,9 +202,11 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
     return unless result[:success]
     return unless mode == 'reply'
 
-    send_reply_text(result[:reply_text])
+    should_suppress_reply = result[:suppress_agent_reply] == true
+    log_suppressed_reply(result[:suppress_reason]) if should_suppress_reply
+    send_reply_text(result[:reply_text]) unless should_suppress_reply
     apply_labels(result[:add_tags], result[:remove_tags])
-    @conversation.reload.bot_handoff! if result[:should_handoff]
+    @conversation.reload.bot_handoff! if result[:should_handoff] && !should_suppress_reply
   end
 
   def send_reply_text(reply_text)
@@ -229,6 +233,13 @@ class WaflowAgents::ExecuteService < WaflowAgents::BaseService
 
     next_labels = @conversation.label_list - safe_remove_tags
     @conversation.update!(label_list: next_labels)
+  end
+
+  def log_suppressed_reply(reason = nil)
+    Rails.logger.info(
+      "[WaflowAgents::ExecuteService] suppressing reply conversation=#{@conversation.id} " \
+      "account=#{@account.id} reason=#{reason.presence || 'waflow_agent'}"
+    )
   end
 
   def normalize_tags(tags)
