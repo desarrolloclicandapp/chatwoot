@@ -70,6 +70,51 @@ RSpec.describe WaflowAgents::AutoReplyJob do
     )
   end
 
+  it 'keeps channel Waflow configuration authoritative when inbox has stale agent attributes' do
+    channel.update!(
+      additional_attributes: {
+        'waflow_default_agent_id' => 42,
+        'waflow_agent_mode' => 'reply'
+      }
+    )
+    inbox.update_columns(
+      additional_attributes: {
+        'waflow_default_agent_id' => 99,
+        'waflow_agent_mode' => 'reply'
+      },
+      updated_at: 1.minute.from_now
+    )
+
+    described_class.new.perform(message.id)
+
+    expect(execute_service).to have_received(:perform).with(
+      agent_id: 42,
+      mode: 'reply',
+      trigger_message: message
+    )
+  end
+
+  it 'skips execution after the first customer message when configured for new conversations only' do
+    channel.update!(
+      additional_attributes: {
+        'waflow_default_agent_id' => 42,
+        'waflow_agent_mode' => 'reply',
+        'waflow_agent_new_conversations_only' => true
+      }
+    )
+    create(
+      :message,
+      message_type: 'incoming',
+      account: account,
+      inbox: inbox,
+      conversation: conversation
+    )
+
+    described_class.new.perform(message.id)
+
+    expect(WaflowAgents::ExecuteService).not_to have_received(:new)
+  end
+
   it 'skips execution when the inbox is explicitly in suggest mode' do
     channel.update!(
       additional_attributes: {
